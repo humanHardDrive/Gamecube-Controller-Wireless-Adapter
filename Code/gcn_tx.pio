@@ -1,0 +1,17 @@
+.program gcn_tx
+
+% c-sdk{
+#include "hardware/gpio.h"
+
+static inline void gcn_tx_init(PIO pio, uint sm, uint offset, uint pin)
+{
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    pio_gpio_init(pio, pin);
+
+    pio_sm_config c = gcn_rx_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin, 1);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
