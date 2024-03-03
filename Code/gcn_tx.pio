@@ -1,15 +1,36 @@
 .program gcn_tx
 
+;Based on the w2812 PIO pico example
+.define public T1   
+.define public T2
+.define public T3
+
+.wrap_target
+bitloop:
+    out x, 1                    ;1
+    jmp !x do_zero  side 0      ;2
+do_one:
+    nop                     []  ;3
+    jmp bitloop     side 1  []  ;4
+do_zero:
+    nop             side 1  []  ;5
+.wrap
+
 % c-sdk{
 #include "hardware/gpio.h"
+#include "hardware/clocks.h"
 
-static inline void gcn_tx_init(PIO pio, uint sm, uint offset, uint pin)
+static inline void gcn_tx_init(PIO pio, uint sm, uint offset, uint pin, float freq)
 {
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
     pio_gpio_init(pio, pin);
 
     pio_sm_config c = gcn_rx_program_get_default_config(offset);
     sm_config_set_out_pins(&c, pin, 1);
+
+    int cycles_per_bit = gcn_tx_T1 + gcn_tx_T2 + gcn_tx_T3;
+    float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);
+    m_config_set_clkdiv(&c, div);
 
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
