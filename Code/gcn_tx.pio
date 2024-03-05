@@ -2,22 +2,21 @@
 .side_set 1 opt
 
 ;Based on the w2812 PIO pico example
-.define public T1   0
-.define public T2   0
-.define public T3   0
+
+.define public T1   1
+.define public T2   2
+.define public T3   3
 
 .wrap_target
-find_start:
-    out x, 1
-    jmp !x find_start
+nop side 1
 bitloop:
-    out x, 1                    ;1
-    jmp !x do_zero  side 0      ;2
+    out x, 1
+    jmp !x do_zero side 0
 do_one:
-    nop                     [1]  ;3
-    jmp bitloop     side 1  [1]  ;4
+    jmp  bitloop   side 1 [T1]
 do_zero:
-    nop             side 1  [1]  ;5
+    nop            side 0 [T2]
+    nop            side 1 [T3]
 .wrap
 
 % c-sdk{
@@ -26,13 +25,12 @@ do_zero:
 
 static inline void gcn_tx_init(PIO pio, uint sm, uint offset, uint pin, float freq)
 {
-    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
     pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
 
     pio_sm_config c = gcn_rx_program_get_default_config(offset);
-    sm_config_set_out_pins(&c, pin, 1);
+    sm_config_set_sideset_pins(&c, pin);
     sm_config_set_out_shift(&c, false, true, 32);
-    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 
     int cycles_per_bit = gcn_tx_T1 + gcn_tx_T2 + gcn_tx_T3;
     float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);

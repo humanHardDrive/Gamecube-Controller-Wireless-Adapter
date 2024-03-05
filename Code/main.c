@@ -3,13 +3,10 @@
 #include "pico/stdlib.h"
 
 #include "hardware/gpio.h"
-#include "hardware/pio.h"
 #include "hardware/spi.h"
 
 #include "PinDefs.h"
 #include "Utils.h"
-#include "gcn_rx.pio.h"
-#include "gcn_tx.pio.h"
 
 #include "ControllerComm.h"
 
@@ -34,20 +31,6 @@ int main()
     gpio_set_function(SPI0_MOSI_PIN, GPIO_FUNC_SPI);
     gpio_set_function(SPI0_MISO_PIN, GPIO_FUNC_SPI);
     gpio_set_function(SPI0_CLK_PIN, GPIO_FUNC_SPI);
-
-    //Setup PIO
-    //Group all the transmits together into the same PIO group to share the same clock timing
-    //PIO0
-    gcn_tx_init(pio0, 0, pio_add_program(pio0, &gcn_tx_program), DATA1_TX_PIN, 250000); //Controller 1
-    gcn_tx_init(pio0, 1, pio_add_program(pio0, &gcn_tx_program), DATA2_TX_PIN, 250000); //Controller 2
-    gcn_tx_init(pio0, 2, pio_add_program(pio1, &gcn_tx_program), DATA3_TX_PIN, 250000); //Controller 3
-    gcn_tx_init(pio0, 3, pio_add_program(pio1, &gcn_tx_program), DATA4_TX_PIN, 250000); //Controller 4
-    //Group all the receives together into the same PIO group to share the same clock timing
-    //PIO1
-    gcn_rx_init(pio1, 0, pio_add_program(pio0, &gcn_rx_program), DATA1_RX_PIN, 250000); //Controller 1
-    gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), DATA2_RX_PIN, 250000); //Controller 2
-    gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), DATA3_RX_PIN, 250000); //Controller 3
-    gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), DATA4_RX_PIN, 250000); //Controller 4
 
     //Detect device configuration
     if(!gpio_get(FUNC_SEL_PIN))
