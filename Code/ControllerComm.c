@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "ControllerComm.h"
 
 #include "ControllerDefs.h"
