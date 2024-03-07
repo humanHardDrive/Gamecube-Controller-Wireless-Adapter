@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #include "pico/stdlib.h"
 
@@ -12,6 +13,9 @@
 
 int main()
 {
+    stdio_init_all();
+
+    printf("Init pins\n");
     //Setup pins
     gpio_init(PAIR_PIN);
     gpio_init(FUNC_SEL_PIN);
@@ -26,6 +30,7 @@ int main()
     gpio_pull_up(PAIR_PIN);
     gpio_pull_up(FUNC_SEL_PIN);
 
+    printf("Init SPI\n");
     //Setup SPI0
     spi_init(spi_default, 10000000); //NRF supports 10MHz
     gpio_set_function(SPI0_MOSI_PIN, GPIO_FUNC_SPI);
@@ -41,6 +46,7 @@ int main()
         Poll for controller values
         Report controller values back to the console side interface
         */
+       printf("Controller side interface\n");
        SetInterfaceType(CONTROLLER_SIDE_INTERFACE);
     }
     else
@@ -51,6 +57,7 @@ int main()
         Feed console data from controller side interface
         Communicate rumbe back to controller side interface
         */
+       printf("Console side interface\n");
        SetInterfaceType(CONSOLE_SIDE_INTERFACE);
     }
 
