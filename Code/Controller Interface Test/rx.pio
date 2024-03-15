@@ -1,24 +1,25 @@
 .program rx
 
 start:
-    wait 0 pin 0
-    nop [6]
+    wait 0 pin 0        ;Wait for the falling edge
+    nop [6]             ;Delay until halfway through the bit
     
 bitloop:
-    jmp pin one_bit
+    jmp pin one_bit     ;If the pin is high halfway through, then the bit is a one
+                        ;If it's not, fall through to the zero case
 
 zero_bit:
-    in pins, 1 [6]
-    jmp bitloop [7]
+    in pins, 1 [6]      ;Shift in the 0 to the ISR, wait for the second half of the bit to complete
+    jmp bitloop [7]     ;Jump back to the bit loop, but wait for halfway through the bit
 
 one_bit:
-    in pins, 1 [6]
-    jmp pin signal
-    jmp bitloop [6]
+    in pins, 1 [6]      ;Shift in the 1 to the ISR, wait for the second half of the bit to complete
+    jmp pin signal      ;If the pin is high at the start of the next bit, the message has ended
+    jmp bitloop [6]     ;If the pin is low, then a new bit has started and we need to wait for halfway through the bit
 
 signal:
-    push
-    jmp start
+    push                ;Push the ISR value
+    jmp start           ;Jump back to the start and wait for the next bit
 
 
 % c-sdk {
