@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "stdlib.h": "c"
+        "*.pio": "plaintext",
+        "stdlib.h": "c",
+        "tx.pio.h": "c"
     }
 }
