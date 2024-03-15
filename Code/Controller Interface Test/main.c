@@ -40,20 +40,19 @@ static inline void controllerWrite(uint32_t val, uint8_t len)
     tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
     pio0->sm[0].shiftctrl |= tempLength;
-
     //Put the data in the state machine
     pio_sm_put_blocking(pio0, 0, val);
 }
 
 int main()
 {
-    uint offset = pio_add_program(pio0, &tx_program);
-    tx_program_init(pio0, 0, offset, 1, 250000); //4uS per bit = 250kHz
-
+    tx_program_init(pio0, 0, pio_add_program(pio0, &tx_program), 1, 250000); //4uS per bit = 250kHz
+    rx_program_init(pio0, 1, pio_add_program(pio0, &rx_program), 2, 250000);
     while(1)
     {
         sleep_ms(10);
-        controllerWrite(0, 8);
+        controllerWrite(0xAA, 8);
+        rx_program_get(pio0, 1);
     }
 
     return 0;

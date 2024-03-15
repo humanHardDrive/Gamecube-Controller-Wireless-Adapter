@@ -1,0 +1,52 @@
+.program rx
+
+start:
+    wait 0 pin 0
+    nop [6]
+    
+bitloop:
+    jmp pin one_bit
+
+zero_bit:
+    in pins, 1 [6]
+    jmp bitloop [7]
+
+one_bit:
+    in pins, 1 [6]
+    jmp pin signal
+    jmp bitloop [6]
+
+signal:
+    push
+    jmp start
+
+
+% c-sdk {
+#include "hardware/clocks.h"
+
+static inline void rx_program_init(PIO pio, uint sm, uint offset, uint pin, uint freq)
+{
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+    pio_gpio_init(pio, pin);
+
+    pio_sm_config c = rx_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin);
+    sm_config_set_jmp_pin(&c, pin);
+    sm_config_set_in_shift(&c, false, false, 0);
+
+    float div = (float)clock_get_hz(clk_sys) / (16 * freq);
+    sm_config_set_clkdiv(&c, div);
+    
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline uint rx_program_get(PIO pio, uint sm)
+{
+    while(pio_sm_is_rx_fifo_empty(pio, sm))
+        tight_loop_contents();
+    
+    return pio->rxf[sm];
+}
+
+%}
