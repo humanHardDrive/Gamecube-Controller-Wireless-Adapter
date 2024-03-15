@@ -10,7 +10,7 @@ bitloop:
     out x, 1                       ; Out doesn't side set because it needs to retain the previous state. All branches need to set the output idle high at the end
     jmp !x do_zero side 0 [T1 - 1] ; Branch on the bit we shifted out. Drive low to start
 do_one:
-    jmp  bitloop   side 1 [T2 - 1] ; Drive the output high for the long high pulse
+    jmp  bitloop   side 1 [T2 - 2] ; Drive the output high for the long high pulse
 do_zero:
     nop            side 0 [T2 - T1 - 1] ; Keep driving low for the long low pulse
     nop            side 1 [T1 - 2] ; Go back to idle high. 2 because the out that follows eats 1 cycle
