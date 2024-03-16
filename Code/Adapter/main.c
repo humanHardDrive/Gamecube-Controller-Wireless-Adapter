@@ -11,6 +11,19 @@
 
 #include "ControllerComm.h"
 
+static void l_ControllerInterfaceLoop()
+{
+    if(!ControllerComm_AnyControllerConnected())
+    {
+        sleep_ms(100);
+    }
+}
+
+static void l_ConsoleInterfaceLoop()
+{
+
+}
+
 int main()
 {
     stdio_init_all();
@@ -66,6 +79,11 @@ int main()
     while(1)
     {
         ControllerComm_Background();
+
+        if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+            l_ControllerInterfaceLoop();
+        else if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
+            l_ConsoleInterfaceLoop();
     }
 
     return 0;

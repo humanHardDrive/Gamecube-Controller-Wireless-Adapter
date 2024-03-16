@@ -27,8 +27,6 @@ typedef struct
 
 static ControllerCommInfo aControllerInfo[NUM_CONTROLLERS];
 
-static absolute_time_t LastPollTime;
-
 void ControllerComm_Init()
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
@@ -39,6 +37,7 @@ void ControllerComm_Init()
         aControllerInfo[i].TXPIO = pio0;
         aControllerInfo[i].RXPIO = pio1;
         aControllerInfo[i].TXSM = aControllerInfo[i].RXSM = i;
+        aControllerInfo[i].info.LastPollTime = get_absolute_time();
     }
 
     //Setup PIO
@@ -54,8 +53,6 @@ void ControllerComm_Init()
     //gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), DATA2_RX_PIN, 250000); //Controller 2
     //gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), DATA3_RX_PIN, 250000); //Controller 3
     //gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), DATA4_RX_PIN, 250000); //Controller 4    
-
-    LastPollTime = get_absolute_time();
 }
 
 /*Write data out to the controller through the PIO
@@ -94,15 +91,23 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 
 static void l_ControllerInterfaceBackground()
 {
-    absolute_time_t currentTime = get_absolute_time();
-
-    if(absolute_time_diff_us(LastPollTime, currentTime) > 12000)
+    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+        uint deltaTime = absolute_time_diff_us(aControllerInfo[i].info.LastPollTime, get_absolute_time());
+        if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
         {
             l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
+            aControllerInfo[i].info.LastPollTime = get_absolute_time();
         }
-        LastPollTime = currentTime;
+        else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
+        {
+            if(aControllerInfo[i].info.doRumble)
+                l_ControllerCommWrite(&aControllerInfo[i], POLL_RUMBLE_CMD, 24);
+            else
+                l_ControllerCommWrite(&aControllerInfo[i], POLL_CMD, 24);
+
+            aControllerInfo[i].info.LastPollTime = get_absolute_time();
+        }
     }
 }
 
@@ -117,4 +122,9 @@ void ControllerComm_Background()
         l_ControllerInterfaceBackground();
     else
         l_ConsoleInterfaceBackground();
+}
+
+unsigned char ControllerComm_AnyControllerConnected()
+{
+    return 0;
 }

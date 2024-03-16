@@ -1,7 +1,9 @@
 #include <stdint.h>
 
-const uint8_t POLL_CMD[] = {0b01000000, 0b00000011, 0b00000010};
-const uint8_t POLL_RUMBLE_CMD[] = {0b01000000, 0b00000011, 0b00000011};
+#include "pico/time.h"
+
+const uint32_t POLL_CMD = 0b010000000000001100000010;
+const uint32_t POLL_RUMBLE_CMD = POLL_CMD | 1;
 
 typedef struct
 {
@@ -36,4 +38,7 @@ typedef struct
 {
     ControllerValues values;
     uint8_t isConnected;
+    uint8_t doRumble;
+
+    absolute_time_t LastPollTime;
 }ControllerInfo;
