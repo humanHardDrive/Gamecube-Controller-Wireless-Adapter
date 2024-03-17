@@ -3,7 +3,7 @@
 #include "pico/time.h"
 
 const uint32_t POLL_CMD = 0b010000000000001100000010;
-const uint32_t POLL_RUMBLE_CMD = POLL_CMD | 1;
+const uint32_t POLL_RUMBLE_CMD = 0b010000000000001100000011;
 
 typedef struct
 {

@@ -5,4 +5,6 @@ void ControllerComm_Init();
 
 void ControllerComm_Background();
 
+unsigned char ControllerComm_AnyControllerConnected();
+
 #endif
