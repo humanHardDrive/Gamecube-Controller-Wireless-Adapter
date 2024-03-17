@@ -37,19 +37,21 @@ void ControllerComm_Init()
         aControllerInfo[i].TXPIO = pio0;
         aControllerInfo[i].RXPIO = pio1;
         aControllerInfo[i].TXSM = aControllerInfo[i].RXSM = i;
+        aControllerInfo[i].info.isConnected = false;
         aControllerInfo[i].info.LastPollTime = get_absolute_time();
+        aControllerInfo[i].info.waitingForResponse = false;
+        aControllerInfo[i].info.consecutiveTimeouts = 0;
     }
 
     //Setup PIO
-    //Group all the transmits together into the same PIO group to share the same clock timing
     //PIO0
-    gcn_tx_init(pio0, 0, pio_add_program(pio0, &gcn_tx_program), DATA1_TX_PIN, 250000); //Controller 1
+    gcn_tx_init(pio0, 0, pio_add_program(pio0, &gcn_tx_program), CONTROLLER_1_DATA_PIN, 250000); //Controller 1
     //gcn_tx_init(pio0, 1, pio_add_program(pio0, &gcn_tx_program), DATA2_TX_PIN, 250000); //Controller 2
     //gcn_tx_init(pio0, 2, pio_add_program(pio1, &gcn_tx_program), DATA3_TX_PIN, 250000); //Controller 3
     //gcn_tx_init(pio0, 3, pio_add_program(pio1, &gcn_tx_program), DATA4_TX_PIN, 250000); //Controller 4
     //Group all the receives together into the same PIO group to share the same clock timing
     //PIO1
-    //gcn_rx_init(pio1, 0, pio_add_program(pio0, &gcn_rx_program), DATA1_RX_PIN, 250000); //Controller 1
+    gcn_rx_init(pio1, 0, pio_add_program(pio0, &gcn_rx_program), CONTROLLER_1_DATA_PIN, 250000); //Controller 1
     //gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), DATA2_RX_PIN, 250000); //Controller 2
     //gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), DATA3_RX_PIN, 250000); //Controller 3
     //gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), DATA4_RX_PIN, 250000); //Controller 4    
@@ -93,27 +95,94 @@ static void l_ControllerInterfaceBackground()
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
+        bool bDoPoll = false;
         uint deltaTime = absolute_time_diff_us(aControllerInfo[i].info.LastPollTime, get_absolute_time());
-        if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
+        
+        //If we're not waiting for a message back, ensure that the response buffer is clear
+        if(!aControllerInfo[i].info.waitingForResponse)
         {
-            l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
-            aControllerInfo[i].info.LastPollTime = get_absolute_time();
-        }
-        else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
-        {
-            if(aControllerInfo[i].info.doRumble)
-                l_ControllerCommWrite(&aControllerInfo[i], POLL_RUMBLE_CMD, 24);
-            else
-                l_ControllerCommWrite(&aControllerInfo[i], POLL_CMD, 24);
+            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM))
+                pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
+        
+            if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
+            {
+                aControllerInfo[i].info.lastMessage = 0;
+                l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 8);
 
-            aControllerInfo[i].info.LastPollTime = get_absolute_time();
+                aControllerInfo[i].info.waitingForResponse = true;
+                aControllerInfo[i].info.LastPollTime = get_absolute_time();
+            }
+            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
+            {
+                if(aControllerInfo[i].info.doRumble)
+                    aControllerInfo[i].info.lastMessage = POLL_RUMBLE_CMD;
+                else
+                    aControllerInfo[i].info.lastMessage = POLL_CMD;
+
+                l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 24);
+                aControllerInfo[i].info.waitingForResponse = true;
+                aControllerInfo[i].info.LastPollTime = get_absolute_time();
+            }
+        }
+        else
+        {
+            if(deltaTime < 1000) //1mS timeout
+            {
+                if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM)) //Check that the buffer has a message
+                {
+                    uint32_t v = pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
+                    if(v & 0x01) //Check that the message has the end bit
+                    {
+                        v >>= 1; //Shift to remove the end bit
+                        if(v != aControllerInfo[i].info.lastMessage) //Validate that this message isn't the one we sent out
+                        {
+                            //Do something with the data
+                            //Depends on message sent?
+                            aControllerInfo[i].info.isConnected = true;
+                            aControllerInfo[i].info.consecutiveTimeouts = 0;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                aControllerInfo[i].info.consecutiveTimeouts++;
+                aControllerInfo[i].info.waitingForResponse = false;
+
+                if(aControllerInfo[i].info.consecutiveTimeouts > 2)
+                    aControllerInfo[i].info.isConnected = false;
+            }
         }
     }
 }
 
 static void l_ConsoleInterfaceBackground()
 {
+    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM))
+        {
+            uint32_t v = pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
+            if(v & 0x01) //Check that the message has the end bit
+            {
+                v >>= 1; //Shift to remove the end bit
+                if(v != aControllerInfo[i].info.lastMessage) //New message from console
+                {
+                    //Poll command
+                    if((v == POLL_CMD) || (v == POLL_RUMBLE_CMD))
+                    {
+                        //Send the controller values from wireless
+                        memcpy(&aControllerInfo[i].info.lastMessage, &aControllerInfo[i].info.values, sizeof(aControllerInfo[i].info.lastMessage));
+                        l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 24);
 
+                        //Set the rumble flag to be sent out to the controller interface
+                        if(v == POLL_RUMBLE_CMD)
+                            aControllerInfo[i].info.doRumble = true;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void ControllerComm_Background()

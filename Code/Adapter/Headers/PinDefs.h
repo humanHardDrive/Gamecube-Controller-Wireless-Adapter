@@ -2,14 +2,10 @@
 #define PAIR_PIN        0
 #define FUNC_SEL_PIN    15
 //Controller communciation pins
-#define DATA1_TX_PIN    1
-#define DATA1_RX_PIN    2
-#define DATA2_TX_PIN    3
-#define DATA2_RX_PIN    4
-#define DATA3_TX_PIN    5
-#define DATA3_RX_PIN    6
-#define DATA4_TX_PIN    7
-#define DATA4_RX_PIN    8
+#define CONTROLLER_1_DATA_PIN   1
+#define CONTROLLER_2_DATA_PIN   2
+#define CONTROLLER_3_DATA_PIN   3
+#define CONTROLLER_4_DATA_PIN   4
 //SPI0 pins
 #define SPI0_MOSI_PIN   19
 #define SPI0_MISO_PIN   16

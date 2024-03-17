@@ -37,8 +37,13 @@ typedef struct
 typedef struct
 {
     ControllerValues values;
+    
     uint8_t isConnected;
     uint8_t doRumble;
+    uint8_t waitingForResponse;
+
+    uint8_t consecutiveTimeouts;
+    uint32_t lastMessage;
 
     absolute_time_t LastPollTime;
 }ControllerInfo;
