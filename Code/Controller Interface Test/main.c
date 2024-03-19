@@ -49,11 +49,13 @@ int main()
     uint in, out = 0;
     stdio_init_all();
 
+    gpio_init(1);
+
     tx_program_init(pio0, 0, pio_add_program(pio0, &tx_program), 1, 250000); //4uS per bit = 250kHz
     rx_program_init(pio0, 1, pio_add_program(pio0, &rx_program), 2, 250000);
     while(1)
     {
-        sleep_ms(500);
+        sleep_ms(100);
         controllerWrite(out, 16);
         in = rx_program_get(pio0, 1);
         printf("out=0x%x in=0x%x\n", out, (in >> 1));

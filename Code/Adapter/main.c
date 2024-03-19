@@ -13,10 +13,10 @@
 
 static void l_ControllerInterfaceLoop()
 {
-    if(!ControllerComm_AnyControllerConnected())
-    {
-        sleep_ms(100);
-    }
+    // if(!ControllerComm_AnyControllerConnected())
+    // {
+    //     sleep_ms(100);
+    // }
 }
 
 static void l_ConsoleInterfaceLoop()
