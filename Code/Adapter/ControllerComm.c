@@ -87,6 +87,8 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 
     //Shift the length over to align to the PULL_THRESH of the SHIFTCTRL register
     tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
+    //Clear out the old length
+    pController->TXPIO->sm[pController->TXSM].shiftctrl &= ~PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
     pController->TXPIO->sm[pController->TXSM].shiftctrl |= tempLength;
     //Put the data in the state machine
