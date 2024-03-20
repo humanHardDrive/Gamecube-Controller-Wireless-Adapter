@@ -1,5 +1,5 @@
 .program gcn_tx
-.side_set 1 opt
+.side_set 1 opt pindirs
 
 .define public T1 2
 .define public T2 6

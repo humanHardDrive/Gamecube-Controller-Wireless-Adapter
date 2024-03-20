@@ -17,4 +17,7 @@ target_sources(gcn-wireless-controller PRIVATE main.c Utils.c ControllerComm.c)
 target_link_libraries(gcn-wireless-controller 
 						PRIVATE pico_stdlib hardware_pio hardware_spi)
 
+pico_enable_stdio_usb(gcn-wireless-controller  1)
+pico_enable_stdio_uart(gcn-wireless-controller  0) 
+
 pico_add_extra_outputs(gcn-wireless-controller)

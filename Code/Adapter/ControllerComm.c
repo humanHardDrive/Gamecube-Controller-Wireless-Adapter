@@ -1,4 +1,6 @@
 #include <string.h>
+#include <stdio.h>
+
 #include "hardware/pio.h"
 #include "pico/time.h"
 
@@ -46,15 +48,15 @@ void ControllerComm_Init()
     //Setup PIO
     //PIO0
     gcn_tx_init(pio0, 0, pio_add_program(pio0, &gcn_tx_program), CONTROLLER_1_DATA_PIN, 250000); //Controller 1
-    //gcn_tx_init(pio0, 1, pio_add_program(pio0, &gcn_tx_program), DATA2_TX_PIN, 250000); //Controller 2
-    //gcn_tx_init(pio0, 2, pio_add_program(pio1, &gcn_tx_program), DATA3_TX_PIN, 250000); //Controller 3
-    //gcn_tx_init(pio0, 3, pio_add_program(pio1, &gcn_tx_program), DATA4_TX_PIN, 250000); //Controller 4
+    //gcn_tx_init(pio0, 1, pio_add_program(pio0, &gcn_tx_program), CONTROLLER_2_DATA_PIN, 250000); //Controller 2
+    //gcn_tx_init(pio0, 2, pio_add_program(pio1, &gcn_tx_program), CONTROLLER_3_DATA_PIN, 250000); //Controller 3
+    //gcn_tx_init(pio0, 3, pio_add_program(pio1, &gcn_tx_program), CONTROLLER_4_DATA_PIN, 250000); //Controller 4
     //Group all the receives together into the same PIO group to share the same clock timing
     //PIO1
-    gcn_rx_init(pio1, 0, pio_add_program(pio0, &gcn_rx_program), CONTROLLER_1_DATA_PIN, 250000); //Controller 1
-    //gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), DATA2_RX_PIN, 250000); //Controller 2
-    //gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), DATA3_RX_PIN, 250000); //Controller 3
-    //gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), DATA4_RX_PIN, 250000); //Controller 4    
+    gcn_rx_init(pio1, 0, pio_add_program(pio1, &gcn_rx_program), 2, 250000); //Controller 1
+    //gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), CONTROLLER_2_DATA_PIN, 250000); //Controller 2
+    //gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), CONTROLLER_3_DATA_PIN, 250000); //Controller 3
+    //gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), CONTROLLER_4_DATA_PIN, 250000); //Controller 4    
 }
 
 /*Write data out to the controller through the PIO
@@ -93,7 +95,7 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 
 static void l_ControllerInterfaceBackground()
 {
-    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+    for(uint8_t i = 0; i < 1; i++)
     {
         bool bDoPoll = false;
         uint deltaTime = absolute_time_diff_us(aControllerInfo[i].info.LastPollTime, get_absolute_time());
@@ -104,16 +106,18 @@ static void l_ControllerInterfaceBackground()
             while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM))
                 pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
         
-            if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
+            if(!aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
             {
+                printf("Controller poll A %d\n", i);
                 aControllerInfo[i].info.lastMessage = 0;
                 l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 8);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
             }
-            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
+            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
             {
+                printf("Controller poll B %d\n", i);
                 if(aControllerInfo[i].info.doRumble)
                     aControllerInfo[i].info.lastMessage = POLL_RUMBLE_CMD;
                 else
@@ -131,26 +135,33 @@ static void l_ControllerInterfaceBackground()
                 if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM)) //Check that the buffer has a message
                 {
                     uint32_t v = pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
+                    printf("Controller response %d A 0x%x\n", i, v);
                     if(v & 0x01) //Check that the message has the end bit
                     {
                         v >>= 1; //Shift to remove the end bit
+                        printf("Controller response %d B 0x%x\n", i, v);
                         if(v != aControllerInfo[i].info.lastMessage) //Validate that this message isn't the one we sent out
                         {
                             //Do something with the data
                             //Depends on message sent?
                             aControllerInfo[i].info.isConnected = true;
                             aControllerInfo[i].info.consecutiveTimeouts = 0;
+                            aControllerInfo[i].info.waitingForResponse = false;
                         }
                     }
                 }
             }
             else
             {
+                printf("Controller timeout %d\n", i);
                 aControllerInfo[i].info.consecutiveTimeouts++;
                 aControllerInfo[i].info.waitingForResponse = false;
 
-                if(aControllerInfo[i].info.consecutiveTimeouts > 2)
+                if(aControllerInfo[i].info.isConnected && aControllerInfo[i].info.consecutiveTimeouts > 2)
+                {
+                    printf("Controller disconnect %d\n", i);
                     aControllerInfo[i].info.isConnected = false;
+                }
             }
         }
     }
