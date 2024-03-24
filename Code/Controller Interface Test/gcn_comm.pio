@@ -1,0 +1,73 @@
+.program gcn_comm
+.side_set 1 pindirs
+
+.define public T1 4
+.define public T2 12
+
+PUBLIC tx_start:
+    out x, 1            side 0
+    jmp !x do_zero      side 1 [T1 - 1] ; Branch on the bit we shifted out. Drive low to start
+
+do_one:
+    jmp !OSRE tx_start  side 0 [T2 - 2] ; Drive the output high for the long high pulse
+    jmp rx_start        side 0
+
+do_zero:
+    nop                 side 1 [T2 - T1 - 1] ; Keep driving low for the long low pulse
+    nop                 side 0 [T1 - 2] ; Go back to idle high. 2 because the out that follows eats 1 cycle
+    jmp !OSRE tx_start  side 0
+    jmp rx_start        side 0
+
+
+PUBLIC rx_start:
+    wait 0 pin 0        side 0       ;Wait for the falling edge
+    nop [6]             side 0             ;Delay until halfway through the bit
+    
+bitloop:
+    jmp pin one_bit     side 0      ;If the pin is high halfway through, then the bit is a one
+                                    ;If it's not, fall through to the zero case
+zero_bit:
+    in pins, 1          side 0 [6]      ;Shift in the 0 to the ISR, wait for the second half of the bit to complete
+    jmp bitloop         side 0 [7]     ;Jump back to the bit loop, but wait for halfway through the bit
+
+one_bit:
+    in pins, 1          side 0 [6]      ;Shift in the 1 to the ISR, wait for the second half of the bit to complete
+    jmp pin signal      side 0      ;If the pin is high at the start of the next bit, the message has ended
+    jmp bitloop         side 0 [6]     ;If the pin is low, then a new bit has started and we need to wait for halfway through the bit
+
+signal:
+    push                side 0          ;Push the ISR value
+    jmp tx_start        side 0          ;Jump back to the start and wait for the next bit
+
+% c-sdk {
+#include "hardware/clocks.h"
+
+static inline void gcn_comm_program_init(PIO pio, uint sm, uint offset, uint pin, float freq) {
+
+    pio_gpio_init(pio, pin);
+
+    pio_sm_config c = gcn_comm_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_in_pins(&c, pin);
+    sm_config_set_jmp_pin(&c, pin);
+    sm_config_set_in_shift(&c, false, false, 0);
+    sm_config_set_out_shift(&c, false, true, 32);
+
+    int cycles_per_bit = gcn_comm_T1 + gcn_comm_T2;
+    float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline uint gcn_switch_tx (uint offset) {
+    // encode a "jmp reset_bus side 0" instruction for the state machine
+    return pio_encode_jmp (offset + gcn_comm_offset_tx_start) | pio_encode_sideset (1, 0);
+}
+
+static inline uint gcn_switch_rx (uint offset) {
+    // encode a "jmp reset_bus side 0" instruction for the state machine
+    return pio_encode_jmp (offset + gcn_comm_offset_rx_start) | pio_encode_sideset (1, 0);
+}
+%}

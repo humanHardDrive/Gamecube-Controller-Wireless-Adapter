@@ -7,15 +7,14 @@
 #include "hardware/gpio.h"
 #include "hardware/clocks.h"
 
-#include "rx.pio.h"
-#include "tx.pio.h"
+#include "gcn_comm.pio.h"
 
 /*Write data out to the controller through the PIO
 val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
 Appends the 'stop' bit to the end of the write
 */
-static inline void controllerWrite(uint32_t val, uint8_t len)
+static void controllerWrite(uint32_t val, uint8_t len)
  {
     uint32_t tempLength = len;
 
@@ -51,15 +50,11 @@ int main()
 
     gpio_init(1);
 
-    tx_program_init(pio0, 0, pio_add_program(pio0, &tx_program), 1, 250000); //4uS per bit = 250kHz
-    rx_program_init(pio0, 1, pio_add_program(pio0, &rx_program), 2, 250000);
+    gcn_comm_program_init(pio0, 0, pio_add_program(pio0, &gcn_comm_program), 1, 250000); //4uS per bit = 250kHz
     while(1)
     {
         sleep_ms(1000);
         controllerWrite(out, 16);
-        in = rx_program_get(pio0, 1);
-        printf("out=0x%x in=0x%x\n", out, (in >> 1));
-        out++;
     }
 
     return 0;

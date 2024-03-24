@@ -8,8 +8,7 @@ pico_sdk_init()
 
 add_executable(Controller-Interface-Test)
 
-pico_generate_pio_header(Controller-Interface-Test ${CMAKE_CURRENT_LIST_DIR}/rx.pio)
-pico_generate_pio_header(Controller-Interface-Test ${CMAKE_CURRENT_LIST_DIR}/tx.pio)
+pico_generate_pio_header(Controller-Interface-Test ${CMAKE_CURRENT_LIST_DIR}/gcn_comm.pio)
 
 target_sources(Controller-Interface-Test PRIVATE main.c)
 
