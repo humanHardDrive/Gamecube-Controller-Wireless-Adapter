@@ -14,7 +14,7 @@ val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
 Appends the 'stop' bit to the end of the write
 */
-static void controllerWrite(uint32_t val, uint8_t len)
+static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
  {
     uint32_t tempLength = len;
 
@@ -38,23 +38,58 @@ static void controllerWrite(uint32_t val, uint8_t len)
     //Shift the length over to align to the PULL_THRESH of the SHIFTCTRL register
     tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pio0->sm[0].shiftctrl |= tempLength;
+    pio->sm[0].shiftctrl |= tempLength;
     //Put the data in the state machine
-    pio_sm_put_blocking(pio0, 0, val);
+    pio_sm_put_blocking(pio, sm, val);
+}
+
+void controllerSwitchModeTX(PIO pio, uint sm, uint offset)
+{
+    pio_sm_exec_wait_blocking (pio, sm, gcn_switch_tx(offset));
+}
+
+void controllerSwitchModeRX(PIO pio, uint sm, uint offset)
+{
+    pio_sm_exec_wait_blocking (pio, sm, gcn_switch_rx(offset));
 }
 
 int main()
 {
-    uint in, out = 0;
+    uint out = 0;
+    uint consoleOffset = 0, controllerOffset = 0;
+    absolute_time_t lastPollTime = get_absolute_time();
     stdio_init_all();
 
     gpio_init(1);
+    gpio_init(2);
 
-    gcn_comm_program_init(pio0, 0, pio_add_program(pio0, &gcn_comm_program), 1, 250000); //4uS per bit = 250kHz
+    consoleOffset = pio_add_program(pio0, &gcn_comm_program);
+    controllerOffset = pio_add_program(pio1, &gcn_comm_program);
+    gcn_comm_program_init(pio0, 0, consoleOffset, 1, 250000); //4uS per bit = 250kHz
+    gcn_comm_program_init(pio1, 0, controllerOffset, 2, 250000);
     while(1)
     {
-        sleep_ms(1000);
-        controllerWrite(out, 16);
+        uint deltaTime = absolute_time_diff_us(lastPollTime, get_absolute_time());
+        if(deltaTime > 100000)
+        {
+            controllerSwitchModeTX(pio0, 0, consoleOffset);
+            controllerSwitchModeRX(pio1, 0, controllerOffset);
+
+            while(!pio_sm_is_rx_fifo_empty(pio0, 1))
+                pio_sm_get_blocking(pio0, 1);
+
+            printf("Write 0x%x\n", out);
+            controllerWrite(pio0, 0, out++, 16);
+            lastPollTime = get_absolute_time();
+        }
+        else
+        {
+            if(!pio_sm_is_rx_fifo_empty(pio1, 0))
+            {
+                uint32_t v = (pio_sm_get_blocking(pio1, 0) >> 1);
+                printf("Read 0x%x\n", v);
+            }
+        }
     }
 
     return 0;
