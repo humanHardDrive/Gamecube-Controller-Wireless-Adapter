@@ -75,19 +75,27 @@ int main()
             controllerSwitchModeTX(pio0, 0, consoleOffset);
             controllerSwitchModeRX(pio1, 0, controllerOffset);
 
-            while(!pio_sm_is_rx_fifo_empty(pio0, 1))
-                pio_sm_get_blocking(pio0, 1);
+            while(!pio_sm_is_rx_fifo_empty(pio0, 0))
+                pio_sm_get_blocking(pio0, 0);
+
+            while(!pio_sm_is_rx_fifo_empty(pio1, 0))
+                pio_sm_get_blocking(pio1, 0);
 
             printf("Write 0x%x\n", out);
-            controllerWrite(pio0, 0, out++, 16);
+            controllerWrite(pio0, 0, out++, 8);
             lastPollTime = get_absolute_time();
         }
         else
         {
+            if(!pio_sm_is_rx_fifo_empty(pio0, 0))
+            {
+                uint32_t v = (pio_sm_get_blocking(pio0, 0) >> 1);
+            }
+
             if(!pio_sm_is_rx_fifo_empty(pio1, 0))
             {
                 uint32_t v = (pio_sm_get_blocking(pio1, 0) >> 1);
-                printf("Read 0x%x\n", v);
+                controllerWrite(pio1, 0, v, 8);
             }
         }
     }
