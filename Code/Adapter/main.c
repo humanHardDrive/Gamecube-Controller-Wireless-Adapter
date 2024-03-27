@@ -43,12 +43,6 @@ int main()
     gpio_pull_up(PAIR_PIN);
     gpio_pull_up(FUNC_SEL_PIN);
 
-    //Controller data pin setup
-    gpio_init(CONTROLLER_1_DATA_PIN);
-    gpio_init(CONTROLLER_2_DATA_PIN);
-    gpio_init(CONTROLLER_3_DATA_PIN);
-    gpio_init(CONTROLLER_4_DATA_PIN);
-
     printf("Init SPI\n");
     //Setup SPI0
     spi_init(spi_default, 10000000); //NRF supports 10MHz

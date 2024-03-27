@@ -2,6 +2,7 @@
 #define PAIR_PIN        0
 #define FUNC_SEL_PIN    15
 //Controller communciation pins
+#define CONTROLLER_DATA_BASE_PIN    1
 #define CONTROLLER_1_DATA_PIN   1
 #define CONTROLLER_2_DATA_PIN   2
 #define CONTROLLER_3_DATA_PIN   3

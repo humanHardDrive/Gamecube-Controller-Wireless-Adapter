@@ -9,8 +9,7 @@ pico_sdk_init()
 
 add_executable(gcn-wireless-controller)
 
-pico_generate_pio_header(gcn-wireless-controller ${CMAKE_CURRENT_LIST_DIR}/gcn_rx.pio)
-pico_generate_pio_header(gcn-wireless-controller ${CMAKE_CURRENT_LIST_DIR}/gcn_tx.pio)
+pico_generate_pio_header(gcn-wireless-controller ${CMAKE_CURRENT_LIST_DIR}/gcn_comm.pio)
 
 target_sources(gcn-wireless-controller PRIVATE main.c Utils.c ControllerComm.c)
 

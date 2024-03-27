@@ -43,7 +43,6 @@ typedef struct
     uint8_t waitingForResponse;
 
     uint8_t consecutiveTimeouts;
-    uint32_t lastMessage;
 
     absolute_time_t LastPollTime;
 }ControllerInfo;

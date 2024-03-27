@@ -6,8 +6,7 @@
 
 #include "ControllerComm.h"
 
-#include "gcn_rx.pio.h"
-#include "gcn_tx.pio.h"
+#include "gcn_comm.pio.h"
 
 #include "PinDefs.h"
 #include "ControllerDefs.h"
@@ -19,44 +18,56 @@ typedef struct
 {
     ControllerInfo info;
 
-    PIO TXPIO;
-    uint8_t TXSM;
-
-    PIO RXPIO;
-    uint8_t RXSM;
-
+    PIO pio;
+    uint sm;
+    uint offset;
+    uint pin;
 }ControllerCommInfo;
 
 static ControllerCommInfo aControllerInfo[NUM_CONTROLLERS];
 
+static void l_ControllerSwitchModeTX(ControllerCommInfo* pController)
+{
+    pio_sm_exec_wait_blocking(pController->pio, pController->sm, gcn_comm_switch_tx(pController->offset));
+}
+
+static void l_ControllerSwitchModeRX(ControllerCommInfo* pController)
+{
+    pio_sm_exec_wait_blocking(pController->pio, pController->sm, gcn_comm_switch_rx(pController->offset));
+}
+
 void ControllerComm_Init()
 {
+    uint offset = pio_add_program(pio0, &gcn_comm_program);
+
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         aControllerInfo[i].info.isConnected = 0;
         memset(&aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
 
-        aControllerInfo[i].TXPIO = pio0;
-        aControllerInfo[i].RXPIO = pio1;
-        aControllerInfo[i].TXSM = aControllerInfo[i].RXSM = i;
+        aControllerInfo[i].pio = pio0;
+        aControllerInfo[i].sm = i;
+        aControllerInfo[i].offset = offset;
+        aControllerInfo[i].pin = CONTROLLER_DATA_BASE_PIN + i;
+
         aControllerInfo[i].info.isConnected = false;
         aControllerInfo[i].info.LastPollTime = get_absolute_time();
         aControllerInfo[i].info.waitingForResponse = false;
         aControllerInfo[i].info.consecutiveTimeouts = 0;
-    }
 
-    //Setup PIO
-    //PIO0
-    gcn_tx_init(pio0, 0, pio_add_program(pio0, &gcn_tx_program), CONTROLLER_1_DATA_PIN, 250000); //Controller 1
-    //gcn_tx_init(pio0, 1, pio_add_program(pio0, &gcn_tx_program), CONTROLLER_2_DATA_PIN, 250000); //Controller 2
-    //gcn_tx_init(pio0, 2, pio_add_program(pio1, &gcn_tx_program), CONTROLLER_3_DATA_PIN, 250000); //Controller 3
-    //gcn_tx_init(pio0, 3, pio_add_program(pio1, &gcn_tx_program), CONTROLLER_4_DATA_PIN, 250000); //Controller 4
-    //Group all the receives together into the same PIO group to share the same clock timing
-    //PIO1
-    gcn_rx_init(pio1, 0, pio_add_program(pio1, &gcn_rx_program), 2, 250000); //Controller 1
-    //gcn_rx_init(pio1, 1, pio_add_program(pio0, &gcn_rx_program), CONTROLLER_2_DATA_PIN, 250000); //Controller 2
-    //gcn_rx_init(pio1, 2, pio_add_program(pio1, &gcn_rx_program), CONTROLLER_3_DATA_PIN, 250000); //Controller 3
-    //gcn_rx_init(pio1, 3, pio_add_program(pio1, &gcn_rx_program), CONTROLLER_4_DATA_PIN, 250000); //Controller 4    
+        gpio_init(aControllerInfo[i].pin);
+
+        gcn_comm_program_init(aControllerInfo[i].pio, 
+                              aControllerInfo[i].sm, 
+                              aControllerInfo[i].offset,
+                              aControllerInfo[i].pin,
+                              250000);
+        
+        if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+            l_ControllerSwitchModeTX(&aControllerInfo[i]);
+        else
+            l_ControllerSwitchModeRX(&aControllerInfo[i]);
+    }
 }
 
 /*Write data out to the controller through the PIO
@@ -88,11 +99,11 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
     //Shift the length over to align to the PULL_THRESH of the SHIFTCTRL register
     tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
     //Clear out the old length
-    pController->TXPIO->sm[pController->TXSM].shiftctrl &= ~PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS;
+    pController->pio->sm[pController->sm].shiftctrl &= ~PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pController->TXPIO->sm[pController->TXSM].shiftctrl |= tempLength;
+    pController->pio->sm[pController->sm].shiftctrl |= tempLength;
     //Put the data in the state machine
-    pio_sm_put_blocking(pController->TXPIO, pController->TXSM, val);
+    pio_sm_put_blocking(pController->pio, pController->sm, val);
 }
 
 static void l_ControllerInterfaceBackground()
@@ -105,14 +116,13 @@ static void l_ControllerInterfaceBackground()
         //If we're not waiting for a message back, ensure that the response buffer is clear
         if(!aControllerInfo[i].info.waitingForResponse)
         {
-            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM))
-                pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
-        
+            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
+                pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
+
             if(!aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
             {
                 printf("Controller poll A %d\n", i);
-                aControllerInfo[i].info.lastMessage = 0;
-                l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 8);
+                l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
@@ -121,11 +131,10 @@ static void l_ControllerInterfaceBackground()
             {
                 printf("Controller poll B %d\n", i);
                 if(aControllerInfo[i].info.doRumble)
-                    aControllerInfo[i].info.lastMessage = POLL_RUMBLE_CMD;
+                    l_ControllerCommWrite(&aControllerInfo[i], POLL_RUMBLE_CMD, 24);
                 else
-                    aControllerInfo[i].info.lastMessage = POLL_CMD;
+                    l_ControllerCommWrite(&aControllerInfo[i], POLL_CMD, 24);
 
-                l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 24);
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
             }
@@ -134,22 +143,15 @@ static void l_ControllerInterfaceBackground()
         {
             if(deltaTime < 1000) //1mS timeout
             {
-                if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM)) //Check that the buffer has a message
+                if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
                 {
-                    uint32_t v = pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
+                    uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
                     printf("Controller response %d A 0x%x\n", i, v);
                     if(v & 0x01) //Check that the message has the end bit
                     {
                         v >>= 1; //Shift to remove the end bit
                         printf("Controller response %d B 0x%x\n", i, v);
-                        if(v != aControllerInfo[i].info.lastMessage) //Validate that this message isn't the one we sent out
-                        {
-                            //Do something with the data
-                            //Depends on message sent?
-                            aControllerInfo[i].info.isConnected = true;
-                            aControllerInfo[i].info.consecutiveTimeouts = 0;
-                            aControllerInfo[i].info.waitingForResponse = false;
-                        }
+                        aControllerInfo[i].info.waitingForResponse = false;
                     }
                 }
             }
@@ -158,6 +160,7 @@ static void l_ControllerInterfaceBackground()
                 printf("Controller timeout %d\n", i);
                 aControllerInfo[i].info.consecutiveTimeouts++;
                 aControllerInfo[i].info.waitingForResponse = false;
+                l_ControllerSwitchModeTX(&aControllerInfo[i]);
 
                 if(aControllerInfo[i].info.isConnected && aControllerInfo[i].info.consecutiveTimeouts > 2)
                 {
@@ -173,27 +176,9 @@ static void l_ConsoleInterfaceBackground()
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM))
+        if(aControllerInfo[i].info.isConnected)
         {
-            uint32_t v = pio_sm_get_blocking(aControllerInfo[i].RXPIO, aControllerInfo[i].RXSM);
-            if(v & 0x01) //Check that the message has the end bit
-            {
-                v >>= 1; //Shift to remove the end bit
-                if(v != aControllerInfo[i].info.lastMessage) //New message from console
-                {
-                    //Poll command
-                    if((v == POLL_CMD) || (v == POLL_RUMBLE_CMD))
-                    {
-                        //Send the controller values from wireless
-                        memcpy(&aControllerInfo[i].info.lastMessage, &aControllerInfo[i].info.values, sizeof(aControllerInfo[i].info.lastMessage));
-                        l_ControllerCommWrite(&aControllerInfo[i], aControllerInfo[i].info.lastMessage, 24);
 
-                        //Set the rumble flag to be sent out to the controller interface
-                        if(v == POLL_RUMBLE_CMD)
-                            aControllerInfo[i].info.doRumble = true;
-                    }
-                }
-            }
         }
     }
 }
