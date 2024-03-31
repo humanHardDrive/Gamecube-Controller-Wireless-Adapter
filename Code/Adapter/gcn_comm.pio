@@ -5,17 +5,20 @@
 .define public T2 12
 
 PUBLIC tx_start:
+    pull                side 0
+
+tx_loop:
     out x, 1            side 0
     jmp !x do_zero      side 1 [T1 - 1] ; Branch on the bit we shifted out. Drive low to start
 
 do_one:
-    jmp !OSRE tx_start  side 0 [T2 - 2] ; Drive the output high for the long high pulse
+    jmp !OSRE tx_loop  side 0 [T2 - 2] ; Drive the output high for the long high pulse
     jmp do_stop         side 0
 
 do_zero:
     nop                 side 1 [T2 - T1 - 1] ; Keep driving low for the long low pulse
     nop                 side 0 [T1 - 3] ; Go back to idle high. 2 because the out that follows eats 1 cycle
-    jmp !OSRE tx_start  side 0
+    jmp !OSRE tx_loop   side 0
     jmp do_stop         side 0
 
 do_stop:
@@ -55,7 +58,7 @@ static inline void gcn_comm_program_init(PIO pio, uint sm, uint offset, uint pin
     sm_config_set_in_pins(&c, pin);
     sm_config_set_jmp_pin(&c, pin);
     sm_config_set_in_shift(&c, false, false, 0);
-    sm_config_set_out_shift(&c, false, true, 32);
+    sm_config_set_out_shift(&c, false, false, 0);
 
     int cycles_per_bit = gcn_comm_T1 + gcn_comm_T2;
     float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);

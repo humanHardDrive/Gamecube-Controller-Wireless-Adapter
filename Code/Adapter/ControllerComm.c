@@ -108,17 +108,15 @@ static void l_ControllerInterfaceBackground()
             while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
                 pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
 
-            if(!aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
+            if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
             {
-                printf("Controller poll A %d\n", i);
                 l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
             }
-            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
+            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
             {
-                printf("Controller poll B %d\n", i);
                 if(aControllerInfo[i].info.doRumble)
                     l_ControllerCommWrite(&aControllerInfo[i], POLL_RUMBLE_CMD, 24);
                 else
@@ -130,7 +128,7 @@ static void l_ControllerInterfaceBackground()
         }
         else
         {
-            if(deltaTime < 2000) //1mS timeout
+            if(deltaTime < 1000) //1mS timeout
             {
                 if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
                 {
@@ -138,7 +136,6 @@ static void l_ControllerInterfaceBackground()
                     if(v & 0x01) //Check that the message has the end bit
                     {
                         v >>= 1; //Shift to remove the end bit
-                        printf("Controller response %d 0x%x\n", i, v);
                         if(v == 0x90020)
                         {
                             aControllerInfo[i].info.isConnected = true;
@@ -151,12 +148,11 @@ static void l_ControllerInterfaceBackground()
             }
             else
             {
-                printf("Controller timeout %d\n", i);
                 aControllerInfo[i].info.consecutiveTimeouts++;
                 aControllerInfo[i].info.waitingForResponse = false;
                 l_ControllerSwitchModeTX(&aControllerInfo[i]);
 
-                if(aControllerInfo[i].info.isConnected && aControllerInfo[i].info.consecutiveTimeouts > 2)
+                if(aControllerInfo[i].info.isConnected && (aControllerInfo[i].info.consecutiveTimeouts >= 2))
                 {
                     printf("Controller disconnect %d\n", i);
                     aControllerInfo[i].info.isConnected = false;
