@@ -1,29 +1,31 @@
 .program gcn_comm
-.side_set 1 pindirs
+.side_set 1 pindirs ;Pindirs means the side set changes the pin direction, not state. side 1 sets it to an output pulled low. side 0 sets it to an input high-z.
 
-.define public T1 4
-.define public T2 12
+.define public T1 4     ;Time the output is kept low for a 1. Time output is kept high for a 0
+.define public T2 12    ;Time the output is kept low for a 0. Time output is kept high for a 1
+;What matters is that T2 is 3 times as long as T1
 
+;State machine starts in the transmit state
 PUBLIC tx_start:
-    pull                side 0
+    pull                side 0 ;Pull resets the shift count back to 0. Block until the next write. Keep the pin in high-z
 
 tx_loop:
-    out x, 1            side 0
-    jmp !x do_zero      side 1 [T1 - 1] ; Branch on the bit we shifted out. Drive low to start
+    out x, 1            side 0 ;Shift the next bit into the X register. Keep the pin high-z
+    jmp !x do_zero      side 1 [T1 - 1] ;Branch on the bit we shifted out. Drive low to start. Delay to keep the pin low the minimum amount of time (1uS for a one)
 
 do_one:
-    jmp !OSRE tx_loop  side 0 [T2 - 2] ; Drive the output high for the long high pulse
-    jmp do_stop         side 0
+    jmp !OSRE tx_loop   side 0 [T2 - 2] ;Switch back to high-z so the bit goes high. Wait here the amount of time a 1 is high. Jump back to the loop if there is more data
+    jmp do_stop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
 
 do_zero:
-    nop                 side 1 [T2 - T1 - 1] ; Keep driving low for the long low pulse
-    nop                 side 0 [T1 - 3] ; Go back to idle high. 2 because the out that follows eats 1 cycle
-    jmp !OSRE tx_loop   side 0
-    jmp do_stop         side 0
+    nop                 side 1 [T2 - T1 - 1] ;Keep the output low for the rest of the 0 low cycle
+    nop                 side 0 [T1 - 3] ; Go back to idle high.
+    jmp !OSRE tx_loop   side 0 ;Jump back to the loop if there is more data to shift out
+    jmp do_stop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
 
 do_stop:
-    nop                 side 1 [T1 - 1]
-    jmp rx_start        side 0 [T1 - 1]
+    nop                 side 1 [T1 - 1] ;Set the output low to match a 1 bit
+    jmp rx_start        side 0 [T1 - 1] ;Set the pin back to a high-z state. Wait before jumping to let the pin charge back to high
 
 
 PUBLIC rx_start:
@@ -51,16 +53,20 @@ signal:
 
 static inline void gcn_comm_program_init(PIO pio, uint sm, uint offset, uint pin, float freq) {
 
-    pio_gpio_init(pio, pin);
-
     pio_sm_config c = gcn_comm_program_get_default_config(offset);
+    //Setup the pin for the state machine
+    pio_gpio_init(pio, pin);
+    //The pin is used as both an input and output
     sm_config_set_sideset_pins(&c, pin);
     sm_config_set_in_pins(&c, pin);
+    //And is used to jump the state machine
     sm_config_set_jmp_pin(&c, pin);
-    sm_config_set_in_shift(&c, false, false, 0);
-    sm_config_set_out_shift(&c, false, false, 0);
 
-    int cycles_per_bit = gcn_comm_T1 + gcn_comm_T2;
+    sm_config_set_in_shift(&c, false, false, 0); //shift in left (MSB first), no auto-push, 0 auto-push threshold
+    sm_config_set_out_shift(&c, false, false, 0); //shift out left (MSB first), no auto-pull, 0 auto-pull threshold
+    //The auto-pull threshold is modified by l_ControllerCommWrite in ControllerComm.c
+
+    int cycles_per_bit = gcn_comm_T1 + gcn_comm_T2; //Set the clock so that there are 16 samples per bit
     float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);
     sm_config_set_clkdiv(&c, div);
 

@@ -40,7 +40,7 @@ void ControllerComm_Init()
 {
     uint offset = pio_add_program(pio0, &gcn_comm_program);
 
-    for(uint8_t i = 0; i < 1; i++)
+    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         aControllerInfo[i].info.isConnected = 0;
         memset(&aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
@@ -73,7 +73,6 @@ void ControllerComm_Init()
 /*Write data out to the controller through the PIO
 val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
-Appends the 'stop' bit to the end of the write
 */
 static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val, uint8_t len)
 {
@@ -89,7 +88,11 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
     if(tempLength == 32)
         tempLength = 0;
 
-    //Clear out the old length and set the new one
+    //This is the clever part of the function
+    //The OSRE flag is set when the shift count matches the auto-pull threshold. By modifying the auto-pull thershold, an exact number of bits can be shifted out
+    //The important thing is that the auto-pull can never be enabled. Pulls must be done manually to reset the shift count
+    //The shift count cannot be manipulated by any register
+    //Using the auto-pull means that when the threshold grows, the state machine will automatically shift out more bits to match the new count. Sending more data than is intended
     pController->pio->sm[pController->sm].shiftctrl = (pController->pio->sm[pController->sm].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
     //Put the data in the state machine
     pio_sm_put_blocking(pController->pio, pController->sm, val);
@@ -97,14 +100,15 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 
 static void l_ControllerInterfaceBackground()
 {
-    for(uint8_t i = 0; i < 1; i++)
+    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         bool bDoPoll = false;
+        //Keep track of how much time has elapsed since the last message
         uint deltaTime = absolute_time_diff_us(aControllerInfo[i].info.LastPollTime, get_absolute_time());
         
-        //If we're not waiting for a message back, ensure that the response buffer is clear
         if(!aControllerInfo[i].info.waitingForResponse)
         {
+            //If the state machine is not waiting for a message back, ensure that the response buffer is clear
             while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
                 pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
 
