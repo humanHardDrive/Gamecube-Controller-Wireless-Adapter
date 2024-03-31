@@ -10,14 +10,17 @@ PUBLIC tx_start:
 
 do_one:
     jmp !OSRE tx_start  side 0 [T2 - 2] ; Drive the output high for the long high pulse
-    jmp rx_start        side 0
+    jmp do_stop         side 0
 
 do_zero:
     nop                 side 1 [T2 - T1 - 1] ; Keep driving low for the long low pulse
     nop                 side 0 [T1 - 3] ; Go back to idle high. 2 because the out that follows eats 1 cycle
     jmp !OSRE tx_start  side 0
-    jmp rx_start        side 0
+    jmp do_stop         side 0
 
+do_stop:
+    nop                 side 1 [T1 - 1]
+    jmp rx_start        side 0
 
 PUBLIC rx_start:
     wait 0 pin 0        side 0       ;Wait for the falling edge

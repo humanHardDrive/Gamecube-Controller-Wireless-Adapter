@@ -79,16 +79,9 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 {
     uint32_t tempLength = len;
 
-    //Nothing more than 31 bits can be written as the OSR is 32 bits
-    //32 bits can't be written because there needs to be room for the appended stop
-    if(len >= 32)
+    if(len > 32)
         return;
 
-    //Increment the length to account for the 'stop' bit
-    tempLength++;
-
-    val <<= 1; //Shift the input value over to account for the stop bit
-    val++; //Add the stop bit
     val <<= (32 - tempLength); //Shift the value to the left because the OSR is configured to shift out to the left
 
     //If writing 32 bits the auto pull needs to be set to 0
@@ -118,7 +111,7 @@ static void l_ControllerInterfaceBackground()
             if(!aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
             {
                 printf("Controller poll A %d\n", i);
-                l_ControllerCommWrite(&aControllerInfo[i], 0, 7);
+                l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
@@ -142,11 +135,16 @@ static void l_ControllerInterfaceBackground()
                 if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
                 {
                     uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-                    printf("Controller response %d A 0x%x\n", i, v);
                     if(v & 0x01) //Check that the message has the end bit
                     {
                         v >>= 1; //Shift to remove the end bit
-                        printf("Controller response %d B 0x%x\n", i, v);
+                        printf("Controller response %d 0x%x\n", i, v);
+                        if(v == 0x90020)
+                        {
+                            aControllerInfo[i].info.isConnected = true;
+                            aControllerInfo[i].info.consecutiveTimeouts = 0;
+                        }
+
                         aControllerInfo[i].info.waitingForResponse = false;
                     }
                 }

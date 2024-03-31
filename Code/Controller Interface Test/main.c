@@ -18,16 +18,9 @@ static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
  {
     uint32_t tempLength = len;
 
-    //Nothing more than 31 bits can be written as the OSR is 32 bits
-    //32 bits can't be written because there needs to be room for the appended stop
-    if(len >= 32)
+    if(len > 32)
         return;
 
-    //Increment the length to account for the 'stop' bit
-    tempLength++;
-
-    val <<= 1; //Shift the input value over to account for the stop bit
-    val++; //Add the stop bit
     val <<= (32 - tempLength); //Shift the value to the left because the OSR is configured to shift out to the left
 
     //If writing 32 bits the auto pull needs to be set to 0
@@ -35,7 +28,7 @@ static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
     if(tempLength == 32)
         tempLength = 0;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pio->sm[0].shiftctrl = (pio->sm[0].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
+    pio->sm[sm].shiftctrl = (pio->sm[sm].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
     //Put the data in the state machine
     pio_sm_put_blocking(pio, sm, val);
 }
