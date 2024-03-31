@@ -40,7 +40,7 @@ void ControllerComm_Init()
 {
     uint offset = pio_add_program(pio0, &gcn_comm_program);
 
-    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+    for(uint8_t i = 0; i < 1; i++)
     {
         aControllerInfo[i].info.isConnected = 0;
         memset(&aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
@@ -96,12 +96,8 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
     if(tempLength == 32)
         tempLength = 0;
 
-    //Shift the length over to align to the PULL_THRESH of the SHIFTCTRL register
-    tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
-    //Clear out the old length
-    pController->pio->sm[pController->sm].shiftctrl &= ~PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS;
-    //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pController->pio->sm[pController->sm].shiftctrl |= tempLength;
+    //Clear out the old length and set the new one
+    pController->pio->sm[pController->sm].shiftctrl = (pController->pio->sm[pController->sm].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
     //Put the data in the state machine
     pio_sm_put_blocking(pController->pio, pController->sm, val);
 }
@@ -122,7 +118,7 @@ static void l_ControllerInterfaceBackground()
             if(!aControllerInfo[i].info.isConnected && (deltaTime > 1200000))
             {
                 printf("Controller poll A %d\n", i);
-                l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
+                l_ControllerCommWrite(&aControllerInfo[i], 0, 7);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
@@ -141,7 +137,7 @@ static void l_ControllerInterfaceBackground()
         }
         else
         {
-            if(deltaTime < 1000) //1mS timeout
+            if(deltaTime < 2000) //1mS timeout
             {
                 if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
                 {

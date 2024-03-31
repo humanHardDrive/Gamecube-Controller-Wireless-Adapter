@@ -34,11 +34,8 @@ static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
     //See data sheet
     if(tempLength == 32)
         tempLength = 0;
-
-    //Shift the length over to align to the PULL_THRESH of the SHIFTCTRL register
-    tempLength <<= PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB;
     //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pio->sm[0].shiftctrl |= tempLength;
+    pio->sm[0].shiftctrl = (pio->sm[0].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
     //Put the data in the state machine
     pio_sm_put_blocking(pio, sm, val);
 }
@@ -70,7 +67,7 @@ int main()
     while(1)
     {
         uint deltaTime = absolute_time_diff_us(lastPollTime, get_absolute_time());
-        if(deltaTime > 100000)
+        if(deltaTime > 1000000)
         {
             controllerSwitchModeTX(pio0, 0, consoleOffset);
             controllerSwitchModeRX(pio1, 0, controllerOffset);
