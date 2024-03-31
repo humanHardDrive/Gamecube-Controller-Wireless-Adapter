@@ -46,6 +46,7 @@ one_bit:
 
 signal:
     push                side 0          ;Push the ISR value
+    irq set 0 rel       side 0
     jmp tx_start        side 0          ;Jump back to the start and wait for the next bit
 
 % c-sdk {
@@ -62,7 +63,7 @@ static inline void gcn_comm_program_init(PIO pio, uint sm, uint offset, uint pin
     //And is used to jump the state machine
     sm_config_set_jmp_pin(&c, pin);
 
-    sm_config_set_in_shift(&c, false, false, 0); //shift in left (MSB first), no auto-push, 0 auto-push threshold
+    sm_config_set_in_shift(&c, false, true, 0); //shift in left (MSB first), no auto-push, 0 auto-push threshold
     sm_config_set_out_shift(&c, false, false, 0); //shift out left (MSB first), no auto-pull, 0 auto-pull threshold
     //The auto-pull threshold is modified by l_ControllerCommWrite in ControllerComm.c
 

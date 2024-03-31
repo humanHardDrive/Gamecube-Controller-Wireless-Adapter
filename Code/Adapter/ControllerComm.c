@@ -100,7 +100,7 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t val,
 
 static void l_ControllerInterfaceBackground()
 {
-    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+    for(uint8_t i = 0; i < 1; i++)
     {
         bool bDoPoll = false;
         //Keep track of how much time has elapsed since the last message
@@ -112,14 +112,14 @@ static void l_ControllerInterfaceBackground()
             while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
                 pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
 
-            if(!aControllerInfo[i].info.isConnected && (deltaTime > 12000))
+            if(!aControllerInfo[i].info.isConnected && (deltaTime > 1000000))
             {
                 l_ControllerCommWrite(&aControllerInfo[i], 0, 8);
 
                 aControllerInfo[i].info.waitingForResponse = true;
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
             }
-            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1500))
+            else if(aControllerInfo[i].info.isConnected && (deltaTime > 1000000))
             {
                 if(aControllerInfo[i].info.doRumble)
                     l_ControllerCommWrite(&aControllerInfo[i], POLL_RUMBLE_CMD, 24);
@@ -134,20 +134,22 @@ static void l_ControllerInterfaceBackground()
         {
             if(deltaTime < 1000) //1mS timeout
             {
-                if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
+                if(pio_interrupt_get(aControllerInfo[i].pio, aControllerInfo[i].sm))
                 {
-                    uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-                    if(v & 0x01) //Check that the message has the end bit
+                    while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm)) //Check that the buffer has a message
                     {
+                        uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
+                        printf("Read %d 0x%x\n", i, (v >> 1));
+
                         v >>= 1; //Shift to remove the end bit
                         if(v == 0x90020)
                         {
                             aControllerInfo[i].info.isConnected = true;
                             aControllerInfo[i].info.consecutiveTimeouts = 0;
                         }
-
-                        aControllerInfo[i].info.waitingForResponse = false;
                     }
+                    aControllerInfo[i].info.waitingForResponse = false;
+                    pio_interrupt_clear(aControllerInfo[i].pio, aControllerInfo[i].sm);
                 }
             }
             else
@@ -172,7 +174,33 @@ static void l_ConsoleInterfaceBackground()
     {
         if(aControllerInfo[i].info.isConnected)
         {
+            if(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
+            {
+                uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
+                if(v & 0x01)
+                {
+                    if((v == POLL_CMD) || (v == POLL_RUMBLE_CMD))
+                    {
+                        l_ControllerCommWrite(&aControllerInfo[i], 0, 24);
 
+                        aControllerInfo[i].info.doRumble = (v == POLL_RUMBLE_CMD);
+                    }
+                    else if(v == 0)
+                    {
+
+                    }
+                    else
+                    {
+                        //Unknown command. Just go back to RX
+                        l_ControllerSwitchModeRX(&aControllerInfo[i]);
+                    }
+                }
+            }
+        }
+        else
+        {
+            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
+                pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
         }
     }
 }
