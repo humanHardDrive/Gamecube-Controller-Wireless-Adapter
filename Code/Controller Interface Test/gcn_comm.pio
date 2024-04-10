@@ -27,25 +27,30 @@ do_stop:
     jmp rx_start        side 0 [T1 - 1] ;Set the pin back to a high-z state. Wait before jumping to let the pin charge back to high
 
 PUBLIC rx_start:
+    mov ISR, NULL       side 0
     wait 0 pin 0        side 0       ;Wait for the falling edge
-    nop [6]             side 0       ;Delay until halfway through the bit
+    nop                 side 0 [6]   ;Delay until halfway through the bit
     
 bitloop:
-    jmp pin one_bit     side 0      ;If the pin is high halfway through, then the bit is a one
-                                    ;If it's not, fall through to the zero case
-zero_bit:
-    in pins, 1          side 0 [6]      ;Shift in the 0 to the ISR, wait for the second half of the bit to complete
-    jmp bitloop         side 0 [7]     ;Jump back to the bit loop, but wait for halfway through the bit
+    in pins, 1                  side 0
+    jmp pin idle_check_start    side 0  ;If the pin is high halfway through, then the bit is a one
+                                        ;If it's not, fall through to the zero case
+    wait 0 pin 0                side 0
+    nop                         side 0 [6]
 
-one_bit:
-    in pins, 1          side 0 [6]      ;Shift in the 1 to the ISR, wait for the second half of the bit to complete
-    jmp pin signal      side 0          ;If the pin is high at the start of the next bit, the message has ended
-    jmp bitloop         side 0 [6]     ;If the pin is low, then a new bit has started and we need to wait for halfway through the bit
+idle_check_start:
+    set y, T2                   side 0
+
+idle_check_l1:
+    jmp pin idle_check_l2       side 0
+    jmp bitloop                 side 0 [6]
+
+idle_check_l2:
+    jmp y-- idle_check_l1       side 0
 
 signal:
-    push                side 0
-    irq set 0 rel       side 0
-    jmp tx_start        side 0
+    push                side 0          ;Push the ISR value
+    jmp tx_start        side 0          ;Jump back to the start and wait for the next bit
 
 % c-sdk {
 #include "hardware/clocks.h"

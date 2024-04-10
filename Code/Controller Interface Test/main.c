@@ -65,11 +65,8 @@ int main()
             controllerSwitchModeTX(pio0, 0, consoleOffset);
             controllerSwitchModeRX(pio1, 0, controllerOffset);
 
-            while(!pio_sm_is_rx_fifo_empty(pio0, 0))
-                pio_sm_get_blocking(pio0, 0);
-
-            while(!pio_sm_is_rx_fifo_empty(pio1, 0))
-                pio_sm_get_blocking(pio1, 0);
+            pio_sm_clear_fifos(pio0, 0);
+            pio_sm_clear_fifos(pio1, 0);
 
             printf("Write 0x%x\n", out);
             controllerWrite(pio0, 0, out++, 8);
