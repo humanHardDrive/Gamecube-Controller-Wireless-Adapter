@@ -55,7 +55,7 @@ int main()
 
     consoleOffset = pio_add_program(pio0, &gcn_comm_program);
     controllerOffset = pio_add_program(pio1, &gcn_comm_program);
-    gcn_comm_program_init(pio0, 0, consoleOffset, 1, 250000); //4uS per bit = 250kHz
+    gcn_comm_program_init(pio0, 0, consoleOffset, 1, 225000); //4uS per bit = 250kHz
     gcn_comm_program_init(pio1, 0, controllerOffset, 2, 250000);
     while(1)
     {

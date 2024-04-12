@@ -32,21 +32,25 @@ PUBLIC rx_start:
     nop                 side 0 [6]   ;Delay until halfway through the bit
     
 bitloop:
-    in pins, 1                  side 0
-    jmp pin idle_check_start    side 0  ;If the pin is high halfway through, then the bit is a one
-                                        ;If it's not, fall through to the zero case
-    wait 0 pin 0                side 0
-    nop                         side 0 [6]
+    in pins, 1                  side 0      ;Shift the pin value into the ISR
+    jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit
+
+    wait 1 pin 0                side 0      ;Wait for the pin to go back high
+    wait 0 pin 0                side 0      ;Wait for the pin to fall at the next bit
+    nop                         side 0 [5]  ;Delay until half way through the bit
+    jmp bitloop                 side 0      ;Jump back to the loop start
 
 idle_check_start:
-    set y, T2                   side 0
+    set y, T2                   side 0      ;Set a counter to a long count to find the idle
+                                            ;Long enough to handle variety of bit timings
 
 idle_check_l1:
-    jmp pin idle_check_l2       side 0
-    jmp bitloop                 side 0 [6]
+    jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count
+    nop                         side 0 [5]  ;If the pin is low, a new bit is started. Wait until half way through
+    jmp bitloop                 side 0      ;Jump back to the loop
 
 idle_check_l2:
-    jmp y-- idle_check_l1       side 0
+    jmp y-- idle_check_l1       side 0      ;Decrement the count. When zero, the stop bit is detected and falls through
 
 signal:
     push                side 0          ;Push the ISR value
