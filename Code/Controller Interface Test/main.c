@@ -23,13 +23,7 @@ static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
 
     val <<= (32 - tempLength); //Shift the value to the left because the OSR is configured to shift out to the left
 
-    //If writing 32 bits the auto pull needs to be set to 0
-    //See data sheet
-    if(tempLength == 32)
-        tempLength = 0;
-    //Set the auto pull register to the length. This allows an arbitrary number of bits between 1 and 32 to be shifted out
-    pio->sm[sm].shiftctrl = (pio->sm[sm].shiftctrl & ~(PIO_SM0_SHIFTCTRL_PULL_THRESH_BITS)) | ((tempLength & 0x1fu) << PIO_SM0_SHIFTCTRL_PULL_THRESH_LSB);
-    //Put the data in the state machine
+    pio_sm_put_blocking(pio, sm, len);
     pio_sm_put_blocking(pio, sm, val);
 }
 
@@ -55,7 +49,7 @@ int main()
 
     consoleOffset = pio_add_program(pio0, &gcn_comm_program);
     controllerOffset = pio_add_program(pio1, &gcn_comm_program);
-    gcn_comm_program_init(pio0, 0, consoleOffset, 1, 225000); //4uS per bit = 250kHz
+    gcn_comm_program_init(pio0, 0, consoleOffset, 1, 250000); //4uS per bit = 250kHz
     gcn_comm_program_init(pio1, 0, controllerOffset, 2, 250000);
     while(1)
     {
