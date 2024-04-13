@@ -27,7 +27,13 @@ do_zero:
 
 do_stop:
     nop                 side 1 [T1 - 1] ;Set the output low to match a 1 bit
+    jmp !OSRE tx_flush  side 0
+
+tx_flush:
+    out NULL, 1         side 0
+    jmp !OSRE tx_flush  side 0
     jmp rx_start        side 0 [T1 - 1] ;Set the pin back to a high-z state. Wait before jumping to let the pin charge back to high
+
 
 PUBLIC rx_start:
     mov ISR, NULL       side 0
@@ -40,13 +46,11 @@ bitloop:
 
     wait 1 pin 0                side 0      ;Wait for the pin to go back high
     wait 0 pin 0                side 0      ;Wait for the pin to fall at the next bit
-    nop                         side 0 [5]  ;Delay until half way through the bit
-    jmp bitloop                 side 0      ;Jump back to the loop start
+    jmp bitloop                 side 0 [6]  ;Jump back to the loop start, then delay until half way through the bit
 
 idle_check_start:
     set y, T2                   side 0      ;Set a counter to a long count to find the idle
                                             ;Long enough to handle variety of bit timings
-
 idle_check_l1:
     jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count
     nop                         side 0 [5]  ;If the pin is low, a new bit is started. Wait until half way through
