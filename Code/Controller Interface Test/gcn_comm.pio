@@ -6,12 +6,12 @@
 
 ;State machine starts in the transmit state
 PUBLIC tx_start:
-    out y, 32           side 0
+    out y, 32           side 0 ;Grab the number of bits to transmit first. Stuff them in the Y register
 
 tx_loop:
-    jmp y-- tx_proc     side 0
-    jmp !OSRE tx_flush  side 0
-    jmp do_stop         side 1
+    jmp y-- tx_proc     side 0 ;Decrement the loop count. If not 0, jump to the transmit machine
+    jmp !OSRE tx_flush  side 0 ;Loop count is 0. Check if there is still data to be shifted from the OSR. It needs to be flushed for the next transmit to work
+    jmp do_stop         side 1 ;The OSR is empty, jump to the stop bit
 
 tx_proc:
     out x, 1            side 0 ;Shift the next bit into the X register. Keep the pin high-z
@@ -19,19 +19,19 @@ tx_proc:
 
 do_one:
     nop                 side 0 [T2 - 4] ;Switch back to high-z so the bit goes high. Wait here the amount of time a 1 is high. Jump back to the loop if there is more data
-    jmp tx_loop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
+    jmp tx_loop         side 0 ;Keep the pin in high-z. Jump back to the transmit loop
 
 do_zero:
     nop                 side 1 [T2 - T1 - 1] ;Keep the output low for the rest of the 0 low cycle
     nop                 side 0 [T1 - 4] ; Go back to idle high.
-    jmp tx_loop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
+    jmp tx_loop         side 0 ;Keep the pin in high-z. Jump back to the transmit loop
 
 tx_flush:
-    out NULL, 32        side 1 
+    out NULL, 32        side 1 ;Pull out whatever is left in the OSR, but don't send it anywhere
 
 do_stop:
-    nop                 side 1 [T1 - 2]
-    jmp rx_start        side 0 [T1 - 1]
+    nop                 side 1 [T1 - 2] ;Keep the pin low for as long as a '1' bit
+    jmp rx_start        side 0 [T1 - 1] ;Jump to the RX state machine
 
 PUBLIC rx_start:
     mov ISR, NULL       side 0
