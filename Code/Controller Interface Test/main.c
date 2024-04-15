@@ -14,17 +14,30 @@ val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
 Appends the 'stop' bit to the end of the write
 */
-static void controllerWrite(PIO pio, uint sm, uint32_t val, uint8_t len)
+static void controllerWrite(PIO pio, uint sm, uint32_t* pVal, uint8_t len)
  {
-    uint32_t tempLength = len;
+    uint8_t nWords = (len / 32);
+    if((nWords * 32) != len)
+        nWords++;
 
-    if(len > 32)
-        return;
-
-    val <<= (32 - tempLength); //Shift the value to the left because the OSR is configured to shift out to the left
+    uint8_t nOffset = ((nWords * 32) - len);
+    uint32_t mask = 0xFFFFFFFF << (32 - nOffset);
 
     pio_sm_put_blocking(pio, sm, len);
-    pio_sm_put_blocking(pio, sm, val);
+    for(int16_t i = nWords; i > 0; i--)
+    {
+        uint32_t val = pVal[i - 1];
+        val <<= nOffset;
+
+        if(i > 1)
+        {
+            uint32_t addIn = pVal[i - 2] & mask;
+            addIn >>= (32 - nOffset);
+            val |= addIn;
+        }
+
+        pio_sm_put_blocking(pio, sm, val);
+    }
 }
 
 void controllerSwitchModeTX(PIO pio, uint sm, uint offset)
@@ -39,7 +52,7 @@ void controllerSwitchModeRX(PIO pio, uint sm, uint offset)
 
 int main()
 {
-    uint out = 0;
+    uint64_t out = 0;
     uint consoleOffset = 0, controllerOffset = 0;
     absolute_time_t lastPollTime = get_absolute_time();
     stdio_init_all();
@@ -62,23 +75,23 @@ int main()
             pio_sm_clear_fifos(pio0, 0);
             pio_sm_clear_fifos(pio1, 0);
 
-            printf("Write 0x%x\n", out);
-            controllerWrite(pio0, 0, out++, 8);
+            controllerWrite(pio0, 0, (uint32_t*)&out, 64);
+            out++;
             lastPollTime = get_absolute_time();
         }
-        else
+        /*else
         {
             if(!pio_sm_is_rx_fifo_empty(pio0, 0))
-            {
-                uint32_t v = (pio_sm_get_blocking(pio0, 0) >> 1);
-            }
+                pio_sm_get_blocking(pio0, 0);
 
             if(!pio_sm_is_rx_fifo_empty(pio1, 0))
             {
-                uint32_t v = (pio_sm_get_blocking(pio1, 0) >> 1);
-                controllerWrite(pio1, 0, v, 8);
+                uint32_t v;
+                while(!pio_sm_is_rx_fifo_empty(pio1, 0))
+                    v = (pio_sm_get_blocking(pio1, 0) >> 1);
+                controllerWrite(pio1, 0, 0xAA, 8);
             }
-        }
+        }*/
     }
 
     return 0;
