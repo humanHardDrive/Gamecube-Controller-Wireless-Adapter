@@ -5,6 +5,7 @@
 .define public T2 12
 
 ;State machine starts in the transmit state
+.wrap_target
 PUBLIC tx_start:
     out y, 32           side 0 ;Grab the number of bits to transmit first. Stuff them in the Y register
 
@@ -34,11 +35,14 @@ do_stop:
     jmp rx_start        side 0 [T1 - 1] ;Jump to the RX state machine
 
 PUBLIC rx_start:
+    mov x, ~NULL        side 0
     mov ISR, NULL       side 0
-    wait 0 pin 0        side 0       ;Wait for the falling edge
-    nop                 side 0 [6]   ;Delay until halfway through the bit
+    wait 0 pin 0        side 0 [6]      ;Wait for the falling edge
     
 bitloop:
+    jmp x-- rx_data     side 0
+
+rx_data:
     in pins, 1                  side 0      ;Shift the pin value into the ISR
     jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit
 
@@ -51,15 +55,17 @@ idle_check_start:
                                             ;Long enough to handle variety of bit timings
 idle_check_l1:
     jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count
-    nop                         side 0 [5]  ;If the pin is low, a new bit is started. Wait until half way through
-    jmp bitloop                 side 0      ;Jump back to the loop
+    jmp bitloop                 side 0 [6]  ;Jump back to the loop
 
 idle_check_l2:
     jmp y-- idle_check_l1       side 0      ;Decrement the count. When zero, the stop bit is detected and falls through
 
 signal:
     push                side 0          ;Push the ISR value
-    jmp tx_start        side 0          ;Jump back to the start and wait for the next bit
+    mov ISR, ~x         side 0
+    push                side 0
+    irq set 0 rel       side 0
+.wrap
 
 % c-sdk {
 #include "hardware/clocks.h"
