@@ -35,16 +35,16 @@ do_stop:
     jmp rx_start        side 0 [T1 - 1] ;Jump to the RX state machine
 
 PUBLIC rx_start:
-    mov x, ~NULL        side 0
-    mov ISR, NULL       side 0
-    wait 0 pin 0        side 0 [6]      ;Wait for the falling edge
+    mov x, ~NULL        side 0          ;Set the x register to 0xFFFFFFFF. This will count the number of bits received. Including the stop bit
+    mov ISR, NULL       side 0          ;Reset the ISR
+    wait 0 pin 0        side 0 [6]      ;Wait for the falling edge. Delay until half way through the bit
     
 bitloop:
-    jmp x-- rx_data     side 0
+    jmp x-- rx_data     side 0          ;Decrement the counter
 
 rx_data:
     in pins, 1                  side 0      ;Shift the pin value into the ISR
-    jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit
+    jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit. Go to the idle check
 
     wait 1 pin 0                side 0      ;Wait for the pin to go back high
     wait 0 pin 0                side 0      ;Wait for the pin to fall at the next bit
@@ -55,16 +55,16 @@ idle_check_start:
                                             ;Long enough to handle variety of bit timings
 idle_check_l1:
     jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count
-    jmp bitloop                 side 0 [6]  ;Jump back to the loop
+    jmp bitloop                 side 0 [6]  ;Jump back to the loop, delay until half way throug the bit
 
 idle_check_l2:
     jmp y-- idle_check_l1       side 0      ;Decrement the count. When zero, the stop bit is detected and falls through
 
 signal:
-    push                side 0          ;Push the ISR value
-    mov ISR, ~x         side 0
-    push                side 0
-    irq set 0 rel       side 0
+    push                        side 0 ;Push any remaining values in the ISR to the FIFO. This may mean pushing a zero
+    mov ISR, ~x                 side 0 ;Move the inverse of the counter to the ISR
+    push                        side 0 ;Push the bit count onto the FIFO
+    irq set 0 rel               side 0 ;Set the IRQ to signal that the read is complete
 .wrap
 
 % c-sdk {

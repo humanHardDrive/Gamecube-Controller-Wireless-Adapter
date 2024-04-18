@@ -13,32 +13,38 @@
 /*Write data out to the controller through the PIO
 val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
-Appends the 'stop' bit to the end of the write
 */
 static void controllerWrite(PIO pio, uint sm, uint32_t* pVal, uint8_t len)
  {
     uint8_t nWords = ((len - 1) / 32) + 1;
-
     uint8_t nOffset = ((nWords * 32) - len);
     uint32_t mask = 0xFFFFFFFF << (32 - nOffset);
 
-    pio_sm_put_blocking(pio, sm, len);
+    pio_sm_put_blocking(pio, sm, len); //Put the number of bits onto the FIFO
+    //Shift ou the data
     for(int16_t i = nWords; i > 0; i--)
     {
         uint32_t val = pVal[i - 1];
-        val <<= nOffset;
+        val <<= nOffset; //Left shift to be at the end of the OSR
 
+        //Check if data from the previous word needs to be appended onto the one being sent out
+        //Only matters for every word other than the least significant
         if(i > 1)
         {
-            uint32_t addIn = pVal[i - 2] & mask;
-            addIn >>= (32 - nOffset);
-            val |= addIn;
+            uint32_t addIn = pVal[i - 2] & mask; //Mask off the needed bits
+            addIn >>= (32 - nOffset); //Shift it appropriately to align with the current word
+            val |= addIn; //Add it in
         }
 
+        //Send out the constructed word to the FIFO
         pio_sm_put_blocking(pio, sm, val);
     }
 }
 
+/*Read data from the controller through the PIO
+pBuf: Buffer of words that the data is written into
+pLen: Pointer number of bits read
+*/
 static void controllerRead(PIO pio, uint sm, uint32_t* pBuf, uint8_t* pLen)
 {
     uint8_t index = 0;
@@ -46,21 +52,25 @@ static void controllerRead(PIO pio, uint sm, uint32_t* pBuf, uint8_t* pLen)
     uint8_t nOffset;
     uint32_t mask;
 
+    //Get the data from the PIO
     while(!pio_sm_is_rx_fifo_empty(pio, sm))
     {
         uint32_t v = (pio_sm_get_blocking(pio, sm));
-        if(pio_sm_is_rx_fifo_empty(pio, sm))
+        if(pio_sm_is_rx_fifo_empty(pio, sm)) //The last word is always the length
             *pLen = v;
         else
-            pBuf[index++] = v;
+            pBuf[index++] = v; //All other words are the actual data
     }
     
+    //Calculate the number of words the data would take
     nWords = (((*pLen) - 1) / 32) + 1;
 
     //Remove the idle bit
     pBuf[nWords - 1] >>= 1;
+    //Decrement the length
     (*pLen)--;
 
+    //Recalculate the number of words without the stop bit
     nWords = (((*pLen) - 1) / 32) + 1;
 
     //Swap endianess
@@ -71,6 +81,7 @@ static void controllerRead(PIO pio, uint sm, uint32_t* pBuf, uint8_t* pLen)
         pBuf[nWords - 1 - i] = swap;
     }
 
+    //This is essentially the inverse of the write operation
     nOffset = ((nWords * 32) - *pLen);
     mask = 0xFFFFFFFF >> (32 - nOffset);
 
