@@ -113,6 +113,7 @@ void controllerSwitchModeRX(PIO pio, uint sm, uint offset)
 int main()
 {
     uint64_t out = 0;
+    uint8_t nTestLen = 64;
     uint consoleOffset = 0, controllerOffset = 0;
     absolute_time_t lastPollTime = get_absolute_time();
     stdio_init_all();
@@ -127,7 +128,7 @@ int main()
     while(1)
     {
         uint deltaTime = absolute_time_diff_us(lastPollTime, get_absolute_time());
-        if(deltaTime > 1000000)
+        if(deltaTime > 10000)
         {
             controllerSwitchModeTX(pio0, 0, consoleOffset);
             controllerSwitchModeRX(pio1, 0, controllerOffset);
@@ -135,8 +136,11 @@ int main()
             pio_sm_clear_fifos(pio0, 0);
             pio_sm_clear_fifos(pio1, 0);
 
-            out++;
-            controllerWrite(pio0, 0, (uint32_t*)&out, 64);
+            out <<= 1;
+            if(!(out & 0x02))
+                out |= 0x01;
+
+            controllerWrite(pio0, 0, (uint32_t*)&out, nTestLen);
             lastPollTime = get_absolute_time();
         }
         else
@@ -157,6 +161,18 @@ int main()
                 controllerRead(pio1, 0, data, &len);
                 pio_interrupt_clear(pio1, 0);
                 controllerWrite(pio1, 0, data, len);
+
+                if(len != nTestLen)
+                {
+                    printf("Message len doesn't match. %d vs. expected %d\n", len, nTestLen);
+                }
+                else
+                {
+                    if(memcmp(&out, data, 2))
+                    {
+                        printf("Message data doesn't match.\n");
+                    }
+                }
             }
         }
     }
