@@ -211,6 +211,9 @@ static void l_ControllerInterfaceBackground()
                     uint8_t nLen = 0;
                     l_ControllerCommRead(&aControllerInfo[i], data, &nLen);
 
+                    if((aControllerInfo[i].info.LastCmd == POLL_CMD) || (aControllerInfo[i].info.LastCmd == POLL_RUMBLE_CMD))
+                        memcpy(&aControllerInfo[i].info.values, &data, sizeof(aControllerInfo[i].info.values));
+
                     aControllerInfo[i].info.consecutiveTimeouts = 0; //Reset the consecutive timeouts
                     aControllerInfo[i].info.waitingForResponse = false; //Clear the flag waiting for response
                     pio_interrupt_clear(aControllerInfo[i].pio, aControllerInfo[i].sm); //Clear the receive interrupt
