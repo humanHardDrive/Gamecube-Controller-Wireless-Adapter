@@ -44,5 +44,6 @@ typedef struct
 
     uint8_t consecutiveTimeouts;
 
+    uint32_t LastCmd;
     absolute_time_t LastPollTime;
 }ControllerInfo;

@@ -6,48 +6,67 @@
 ;What matters is that T2 is 3 times as long as T1
 
 ;State machine starts in the transmit state
+.wrap_target
 PUBLIC tx_start:
-    pull                side 0 ;Pull resets the shift count back to 0. Block until the next write. Keep the pin in high-z
+    out y, 32           side 0 ;Grab the number of bits to transmit first. Stuff them in the Y register
 
 tx_loop:
+    jmp y-- tx_proc     side 0 ;Decrement the loop count. If not 0, jump to the transmit machine
+    jmp !OSRE tx_flush  side 0 ;Loop count is 0. Check if there is still data to be shifted from the OSR. It needs to be flushed for the next transmit to work
+    jmp do_stop         side 1 ;The OSR is empty, jump to the stop bit
+
+tx_proc:
     out x, 1            side 0 ;Shift the next bit into the X register. Keep the pin high-z
     jmp !x do_zero      side 1 [T1 - 1] ;Branch on the bit we shifted out. Drive low to start. Delay to keep the pin low the minimum amount of time (1uS for a one)
 
 do_one:
-    jmp !OSRE tx_loop   side 0 [T2 - 2] ;Switch back to high-z so the bit goes high. Wait here the amount of time a 1 is high. Jump back to the loop if there is more data
-    jmp do_stop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
+    nop                 side 0 [T2 - 4] ;Switch back to high-z so the bit goes high. Wait here the amount of time a 1 is high. Jump back to the loop if there is more data
+    jmp tx_loop         side 0 ;Keep the pin in high-z. Jump back to the transmit loop
 
 do_zero:
     nop                 side 1 [T2 - T1 - 1] ;Keep the output low for the rest of the 0 low cycle
-    nop                 side 0 [T1 - 3] ; Go back to idle high.
-    jmp !OSRE tx_loop   side 0 ;Jump back to the loop if there is more data to shift out
-    jmp do_stop         side 0 ;Keep the pin in high-z. OSRE is true when the shift count matches the auto-pull amount set by l_ControllerCommWrite in ControllerComm.c
+    nop                 side 0 [T1 - 4] ; Go back to idle high.
+    jmp tx_loop         side 0 ;Keep the pin in high-z. Jump back to the transmit loop
+
+tx_flush:
+    out NULL, 32        side 1 ;Pull out whatever is left in the OSR, but don't send it anywhere
 
 do_stop:
-    nop                 side 1 [T1 - 1] ;Set the output low to match a 1 bit
-    jmp rx_start        side 0 [T1 - 1] ;Set the pin back to a high-z state. Wait before jumping to let the pin charge back to high
-
+    nop                 side 1 [T1 - 2] ;Keep the pin low for as long as a '1' bit
+    jmp rx_start        side 0 [T1 - 1] ;Jump to the RX state machine
 
 PUBLIC rx_start:
-    wait 0 pin 0        side 0       ;Wait for the falling edge
-    nop [6]             side 0       ;Delay until halfway through the bit
+    mov x, ~NULL        side 0          ;Set the x register to 0xFFFFFFFF. This will count the number of bits received. Including the stop bit
+    mov ISR, NULL       side 0          ;Reset the ISR
+    wait 0 pin 0        side 0 [6]      ;Wait for the falling edge. Delay until half way through the bit
     
 bitloop:
-    jmp pin one_bit     side 0      ;If the pin is high halfway through, then the bit is a one
-                                    ;If it's not, fall through to the zero case
-zero_bit:
-    in pins, 1          side 0 [6]      ;Shift in the 0 to the ISR, wait for the second half of the bit to complete
-    jmp bitloop         side 0 [7]     ;Jump back to the bit loop, but wait for halfway through the bit
+    jmp x-- rx_data     side 0          ;Decrement the counter
 
-one_bit:
-    in pins, 1          side 0 [6]      ;Shift in the 1 to the ISR, wait for the second half of the bit to complete
-    jmp pin signal      side 0          ;If the pin is high at the start of the next bit, the message has ended
-    jmp bitloop         side 0 [6]     ;If the pin is low, then a new bit has started and we need to wait for halfway through the bit
+rx_data:
+    in pins, 1                  side 0      ;Shift the pin value into the ISR
+    jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit. Go to the idle check
+
+    wait 1 pin 0                side 0      ;Wait for the pin to go back high
+    wait 0 pin 0                side 0      ;Wait for the pin to fall at the next bit
+    jmp bitloop                 side 0 [6]  ;Jump back to the loop start, then delay until half way through the bit
+
+idle_check_start:
+    set y, T2                   side 0      ;Set a counter to a long count to find the idle
+                                            ;Long enough to handle variety of bit timings
+idle_check_l1:
+    jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count
+    jmp bitloop                 side 0 [6]  ;Jump back to the loop, delay until half way throug the bit
+
+idle_check_l2:
+    jmp y-- idle_check_l1       side 0      ;Decrement the count. When zero, the stop bit is detected and falls through
 
 signal:
-    push                side 0          ;Push the ISR value
-    irq set 0 rel       side 0
-    jmp tx_start        side 0          ;Jump back to the start and wait for the next bit
+    push                        side 0 ;Push any remaining values in the ISR to the FIFO. This may mean pushing a zero
+    mov ISR, ~x                 side 0 ;Move the inverse of the counter to the ISR
+    push                        side 0 ;Push the bit count onto the FIFO
+    irq set 0 rel               side 0 ;Set the IRQ to signal that the read is complete
+.wrap
 
 % c-sdk {
 #include "hardware/clocks.h"
