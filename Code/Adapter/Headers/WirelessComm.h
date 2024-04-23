@@ -1,22 +1,14 @@
-#ifndef __WIRELESS_COMM_H__
-#define __WIRELESS_COMM_H__
+#pragma once
 
-#include <stdint.h>
+#include "RF24.h"
 
-enum
+class WirelessComm
 {
-    PAIR_STATE_UNKNOWN = 0,
-    PAIR_STATE_PAIRING,
-    PAIR_STATE_PAIRING_COMPLETE
+public:
+    WirelessComm();
+
+    void Init();
+    void Background();
+
+private:
 };
-
-void WirelessComm_Init();
-
-void WirelessComm_Pair();
-uint8_t WirelessComm_GetPairState();
-uint8_t WirelessComm_GetPairStatus();
-
-void WirelessComm_Background();
-
-
-#endif

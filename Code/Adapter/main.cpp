@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <tusb.h>
 
 #include "pico/stdlib.h"
 
@@ -26,7 +27,14 @@ static void l_ConsoleInterfaceLoop()
 
 int main()
 {
+    ControllerComm controllerComm;
+    WirelessComm wirelessComm;
+
     stdio_init_all();
+
+    while (!tud_cdc_connected()) {
+        sleep_ms(10);
+    }
 
     printf("Init pins\n");
     //Setup pins
@@ -64,15 +72,15 @@ int main()
     }
 
     //Setup controller communication
-    ControllerComm_Init();
+    controllerComm.Init();
 
     //Setup wireless communication
-    WirelessComm_Init();
+    wirelessComm.Init();
 
     while(1)
     {
-        ControllerComm_Background();
-        WirelessComm_Background();
+        controllerComm.Background();
+        wirelessComm.Background();
 
         if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
             l_ControllerInterfaceLoop();

@@ -1,10 +1,39 @@
-#ifndef __CONTROLLER_COMM_H__
-#define __CONTROLLER_COMM_H__
+#pragma once
 
-void ControllerComm_Init();
+#include <stdint.h>
 
-void ControllerComm_Background();
+#include "hardware/pio.h"
 
-unsigned char ControllerComm_AnyControllerConnected();
+#include "ControllerDefs.h"
 
-#endif
+#define NUM_CONTROLLERS 4
+
+typedef struct
+{
+    ControllerInfo info;
+
+    PIO pio;
+    uint sm;
+    uint offset;
+    uint pin;
+}ControllerCommInfo;
+
+class ControllerComm
+{
+public:
+    ControllerComm();
+
+    void Init();
+    void Background();
+    unsigned char AnyControllerConnected();
+
+private:
+    void SwitchModeTX(ControllerCommInfo* pController);
+    void SwitchModeRX(ControllerCommInfo* pController);
+
+    void Write(ControllerCommInfo* pController, uint32_t* pVal, uint8_t len);
+    void Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8_t* pLen);
+
+    void ConsoleInterfaceBackground();
+    void ControllerInterfaceBackground();
+};

@@ -1,42 +1,33 @@
+#include "ControllerComm.h"
+
 #include <string.h>
 #include <stdio.h>
 
-#include "hardware/pio.h"
 #include "pico/time.h"
-
-#include "ControllerComm.h"
 
 #include "gcn_comm.pio.h"
 
 #include "PinDefs.h"
-#include "ControllerDefs.h"
 #include "Utils.h"
-
-#define NUM_CONTROLLERS 4
-
-typedef struct
-{
-    ControllerInfo info;
-
-    PIO pio;
-    uint sm;
-    uint offset;
-    uint pin;
-}ControllerCommInfo;
 
 static ControllerCommInfo aControllerInfo[NUM_CONTROLLERS];
 
-static void l_ControllerSwitchModeTX(ControllerCommInfo* pController)
+ControllerComm::ControllerComm()
+{
+    
+}
+
+void ControllerComm::SwitchModeTX(ControllerCommInfo* pController)
 {
     pio_sm_exec_wait_blocking(pController->pio, pController->sm, gcn_comm_switch_tx(pController->offset));
 }
 
-static void l_ControllerSwitchModeRX(ControllerCommInfo* pController)
+void ControllerComm::SwitchModeRX(ControllerCommInfo* pController)
 {
     pio_sm_exec_wait_blocking(pController->pio, pController->sm, gcn_comm_switch_rx(pController->offset));
 }
 
-void ControllerComm_Init()
+void ControllerComm::Init()
 {
     uint offset = pio_add_program(pio0, &gcn_comm_program);
 
@@ -64,9 +55,9 @@ void ControllerComm_Init()
                               250000);
         
         if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
-            l_ControllerSwitchModeTX(&aControllerInfo[i]);
+            SwitchModeTX(&aControllerInfo[i]);
         else
-            l_ControllerSwitchModeRX(&aControllerInfo[i]);
+            SwitchModeRX(&aControllerInfo[i]);
     }
 }
 
@@ -74,7 +65,7 @@ void ControllerComm_Init()
 val: Max 32-bit value to be written out
 len: Number of bits to actually shift out
 */
-static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t* pVal, uint8_t len)
+void ControllerComm::Write(ControllerCommInfo* pController, uint32_t* pVal, uint8_t len)
 {
     uint8_t nWords = ((len - 1) / 32) + 1;
     uint8_t nOffset = ((nWords * 32) - len);
@@ -105,7 +96,7 @@ static void l_ControllerCommWrite(ControllerCommInfo* pController, uint32_t* pVa
 pBuf: Buffer of words that the data is written into
 pLen: Pointer number of bits read
 */
-static void l_ControllerCommRead(ControllerCommInfo* pController, uint32_t* pBuf, uint8_t* pLen)
+void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8_t* pLen)
 {
     uint8_t index = 0;
     uint8_t nWords;
@@ -160,7 +151,7 @@ static void l_ControllerCommRead(ControllerCommInfo* pController, uint32_t* pBuf
     }
 }
 
-static void l_ControllerInterfaceBackground()
+void ControllerComm::ControllerInterfaceBackground()
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
@@ -198,7 +189,7 @@ static void l_ControllerInterfaceBackground()
                 aControllerInfo[i].info.LastPollTime = get_absolute_time();
                 aControllerInfo[i].info.LastCmd = cmd;
 
-                l_ControllerCommWrite(&aControllerInfo[i], &cmd, nBits);
+                Write(&aControllerInfo[i], &cmd, nBits);
             }
         }
         else
@@ -209,7 +200,7 @@ static void l_ControllerInterfaceBackground()
                 {
                     uint32_t data[4] = {0};
                     uint8_t nLen = 0;
-                    l_ControllerCommRead(&aControllerInfo[i], data, &nLen);
+                    Read(&aControllerInfo[i], data, &nLen);
 
                     if((aControllerInfo[i].info.LastCmd == POLL_CMD) || (aControllerInfo[i].info.LastCmd == POLL_RUMBLE_CMD))
                         memcpy(&aControllerInfo[i].info.values, &data, sizeof(aControllerInfo[i].info.values));
@@ -223,7 +214,7 @@ static void l_ControllerInterfaceBackground()
             {
                 aControllerInfo[i].info.consecutiveTimeouts++;
                 aControllerInfo[i].info.waitingForResponse = false;
-                l_ControllerSwitchModeTX(&aControllerInfo[i]);
+                SwitchModeTX(&aControllerInfo[i]);
 
                 if(aControllerInfo[i].info.isConnected && (aControllerInfo[i].info.consecutiveTimeouts >= 2))
                 {
@@ -235,7 +226,7 @@ static void l_ControllerInterfaceBackground()
     }
 }
 
-static void l_ConsoleInterfaceBackground()
+void ControllerComm::ConsoleInterfaceBackground()
 {
     for(uint8_t i = 0; i < 1; i++)
     {
@@ -294,15 +285,15 @@ static void l_ConsoleInterfaceBackground()
     }
 }
 
-void ControllerComm_Background()
+void ControllerComm::Background()
 {
     if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
-        l_ControllerInterfaceBackground();
+        ControllerInterfaceBackground();
     else
-        l_ConsoleInterfaceBackground();
+        ConsoleInterfaceBackground();
 }
 
-unsigned char ControllerComm_AnyControllerConnected()
+unsigned char ControllerComm::AnyControllerConnected()
 {
     return 0;
 }

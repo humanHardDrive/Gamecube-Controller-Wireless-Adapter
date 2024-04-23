@@ -1,5 +1,4 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#pragma once
 
 #include <stdint.h>
 
@@ -8,5 +7,3 @@
 
 void SetInterfaceType(uint8_t function);
 uint8_t GetInterfaceType();
-
-#endif
