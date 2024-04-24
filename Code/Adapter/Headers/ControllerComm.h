@@ -25,6 +25,9 @@ public:
 
     void Init();
     void Background();
+
+    void GetControllerData(void* pBuf);
+
     unsigned char AnyControllerConnected();
 
 private:

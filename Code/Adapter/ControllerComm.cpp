@@ -293,6 +293,33 @@ void ControllerComm::Background()
         ConsoleInterfaceBackground();
 }
 
+void ControllerComm::GetControllerData(void *pBuf)
+{
+    if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+    {
+        for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+        {
+            if(aControllerInfo[i].info.isConnected)
+            {
+                //Copy the controller values into the buffer
+                memcpy(&((ControllerValues*)pBuf)[i], &aControllerInfo[i].info.values, sizeof(ControllerValues));
+            }
+            else
+            {
+                //If the controller is not connected, set all of the data to 0
+                memset(&((ControllerValues*)pBuf)[i], 0, sizeof(ControllerValues));
+            }
+        }
+    }
+    else //Console side interface
+    {
+        for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+        {
+            ((uint8_t*)pBuf)[i] = aControllerInfo[i].info.doRumble;
+        }
+    }
+}
+
 unsigned char ControllerComm::AnyControllerConnected()
 {
     return 0;

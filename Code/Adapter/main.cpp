@@ -23,6 +23,8 @@ WirelessComm wirelessComm;
 //Controller data signal
 uint8_t nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
 //Controller data buffer
+ControllerValues controllerBuffer[NUM_CONTROLLERS];
+uint8_t consoleBuffer[NUM_CONTROLLERS];
 //This buffer is ping-ponged between the controller and console interfaces using the switch above
 //Each side takes turns updating, then consuming the data (controller produces, wireless consumes)
 //The switch lets either side know when it is safe to do so
@@ -48,6 +50,11 @@ void ControllerCommunicationCore()
         //Ping-pong the ownership of the controller data between controller and wireless
         if(nControllerDataOwner == CONTROLLER_COMM_OWNS_DATA)
         {
+            if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+                controllerComm.GetControllerData(controllerBuffer);
+            else //Console side interface
+                controllerComm.GetControllerData(consoleBuffer);
+
             nControllerDataOwner = WIRELESS_COMM_OWNS_DATA;
         }
     }
