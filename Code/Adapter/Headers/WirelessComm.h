@@ -2,6 +2,8 @@
 
 #include "RF24.h"
 
+#define MAX_PAYLOAD_SIZE    32
+
 enum class PAIRING_STATE
 {
     UNKNOWN,
@@ -20,6 +22,9 @@ public:
     void Pair();
     PAIRING_STATE PairingState() {return m_PairingState;}
     bool IsPaired();
+
+    bool Write(void* pBuf, uint8_t len);
+    uint8_t Read(void* pBuf, uint8_t len);
 
 private:
     PAIRING_STATE m_PairingState = PAIRING_STATE::UNKNOWN;

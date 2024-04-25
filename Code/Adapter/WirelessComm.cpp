@@ -1,8 +1,6 @@
 #include "WirelessComm.h"
 #include "PinDefs.h"
 
-#define MAX_PAYLOAD_SIZE    32
-
 WirelessComm::WirelessComm()
 {
 }
@@ -33,6 +31,21 @@ void WirelessComm::Pair()
 bool WirelessComm::IsPaired()
 {
     return false;
+}
+
+bool WirelessComm::Write(void *pBuf, uint8_t len)
+{
+    if(PairingState() == PAIRING_STATE::COMPLETED)
+    {
+
+    }
+
+    return false;
+}
+
+uint8_t WirelessComm::Read(void *pBuf, uint8_t len)
+{
+    return 0;
 }
 
 void WirelessComm::PairingProcess()

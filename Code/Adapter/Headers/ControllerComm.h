@@ -39,4 +39,6 @@ private:
 
     void ConsoleInterfaceBackground();
     void ControllerInterfaceBackground();
+
+    ControllerCommInfo m_aControllerInfo[NUM_CONTROLLERS];
 };

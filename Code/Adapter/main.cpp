@@ -75,24 +75,47 @@ void WirelessCommunicationCore()
         //Ping-pong the ownership of the controller data between controller and wireless
         if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
         {
-            if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
+            if((wirelessComm.PairingState() == PAIRING_STATE::COMPLETED) && wirelessComm.IsPaired())
             {
-                uint deltaTime = absolute_time_diff_us(lastMsgTime, get_absolute_time());
-                //Either a response has been recieved from the controller side interface
-                //Or more than 1 millisecond has elapsed
-                if(bDataReceived || (deltaTime > 1000))
+                uint8_t rxBuf[MAX_PAYLOAD_SIZE];
+                uint8_t nBytesRead = 0;
+
+                if(nBytesRead = wirelessComm.Read(rxBuf, MAX_PAYLOAD_SIZE))
+                    bDataReceived = true;
+
+                if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
                 {
-                    //Write console side controller data
-                    bDataReceived = false;
+                    uint deltaTime = absolute_time_diff_us(lastMsgTime, get_absolute_time());
+                    
+                    //Either a response has been recieved from the controller side interface
+                    //Or more than 1 millisecond has elapsed
+                    if(bDataReceived || (deltaTime > 1000))
+                    {
+                        if(bDataReceived)
+                        {
+                            //Copy over the controller data from the controller side interface
+                            memcpy(controllerBuffer, rxBuf, nBytesRead);
+                        }
+
+                        //Write console side controller data
+                        wirelessComm.Write(consoleBuffer, sizeof(consoleBuffer));
+                        //Clear the received flag to wait to transmit again
+                        bDataReceived = false;
+                    }
                 }
-            }
-            else //Controller side interface
-            {
-                //Check if there has been a message from the console side interface
-                if(bDataReceived)
+                else //Controller side interface
                 {
-                    //Write controller side controller data
-                    bDataReceived = false;
+                    //Check if there has been a message from the console side interface
+                    if(bDataReceived)
+                    {
+                        //Copy over the controller data from the controller side interface
+                        memcpy(consoleBuffer, rxBuf, nBytesRead);
+
+                        //Write controller side controller data
+                        wirelessComm.Write(controllerBuffer, sizeof(controllerBuffer));
+                        //Clear the received flag to wait to transmit again
+                        bDataReceived = false;
+                    }
                 }
             }
 
