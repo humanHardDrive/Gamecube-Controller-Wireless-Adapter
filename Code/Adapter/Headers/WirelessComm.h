@@ -26,11 +26,11 @@ public:
     bool Write(void* pBuf, uint8_t len);
     uint8_t Read(void* pBuf, uint8_t len);
 
-private:
+private:   
+    void PairingProcess();
+
     PAIRING_STATE m_PairingState = PAIRING_STATE::UNKNOWN;
 
     RF24 m_Radio;
     SPI m_SPIBus;
-
-    void PairingProcess();
 };
