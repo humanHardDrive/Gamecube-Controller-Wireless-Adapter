@@ -24,7 +24,7 @@ WirelessComm wirelessComm;
 uint8_t nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
 //Controller data buffer
 ControllerValues controllerBuffer[NUM_CONTROLLERS];
-ControllerValues consoleBuffer[NUM_CONTROLLERS];
+uint8_t consoleBuffer[NUM_CONTROLLERS];
 //This buffer is ping-ponged between the controller and console interfaces using the switch above
 //Each side takes turns updating, then consuming the data (controller produces, wireless consumes)
 //The switch lets either side know when it is safe to do so
@@ -65,7 +65,6 @@ void WirelessCommunicationCore()
 {
     bool bDataReceived = false;
     absolute_time_t lastMsgTime = get_absolute_time();
-    const char* s = "HELLO";
 
     printf("Wireless core started\n");
 
@@ -91,7 +90,7 @@ void WirelessCommunicationCore()
                 
                 //Either a response has been recieved from the controller side interface
                 //Or more than 1 millisecond has elapsed
-                if(bDataReceived || (deltaTime > 1100))
+                if(deltaTime > 1000)
                 {
                     lastMsgTime = get_absolute_time();
 
