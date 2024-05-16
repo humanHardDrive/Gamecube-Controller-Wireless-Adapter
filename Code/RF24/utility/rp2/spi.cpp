@@ -15,6 +15,9 @@ void SPI::begin(spi_inst_t* hw_id, uint8_t _sck, uint8_t _tx, uint8_t _rx)
     gpio_set_function(_sck, GPIO_FUNC_SPI);
     gpio_set_function(_tx, GPIO_FUNC_SPI);
     gpio_set_function(_rx, GPIO_FUNC_SPI);
+
+    spi_init(_hw_id, 10000000);
+    spi_set_format(_hw_id, RF24_SPI_BYTE_SIZE, RF24_SPI_CPOL, RF24_SPI_CPHA, RF24_SPI_ENDIAN);    
 }
 
 uint8_t SPI::transfer(uint8_t tx_)
@@ -36,13 +39,11 @@ void SPI::transfern(const uint8_t* buf, uint32_t len)
 
 void SPI::beginTransaction(uint32_t _spi_speed)
 {
-    spi_init(_hw_id, _spi_speed);
-    spi_set_format(_hw_id, RF24_SPI_BYTE_SIZE, RF24_SPI_CPOL, RF24_SPI_CPHA, RF24_SPI_ENDIAN);
 }
 
 void SPI::endTransaction()
 {
-    spi_deinit(_hw_id);
+    //spi_deinit(_hw_id);
 }
 
 SPI::~SPI()
