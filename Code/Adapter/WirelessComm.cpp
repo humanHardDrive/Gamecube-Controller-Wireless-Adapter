@@ -41,11 +41,10 @@ void WirelessComm::Init()
     }
 
     m_Radio.setAutoAck(false);
+    m_Radio.setDataRate(rf24_datarate_e::RF24_2MBPS);
 
     m_Radio.txDelay = 0; //Autoack is disabled
     m_Radio.csDelay = 1;
-
-    m_Radio.setDataRate(rf24_datarate_e::RF24_2MBPS);
 
     m_Radio.startListening();
 }
