@@ -24,10 +24,10 @@ typedef struct
     uint8_t LeftBtn : 1;
 
     //Joysticks
-    uint8_t JoyX;
-    uint8_t JoyY;
-    uint8_t CX;
-    uint8_t CY;
+    int8_t JoyX;
+    int8_t JoyY;
+    int8_t CX;
+    int8_t CY;
     
     //Analog triggers
     uint8_t LVal;

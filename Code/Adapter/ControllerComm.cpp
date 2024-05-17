@@ -173,13 +173,13 @@ void ControllerComm::ControllerInterfaceBackground()
             while(!pio_sm_is_rx_fifo_empty(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
                 pio_sm_get_blocking(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
 
-            if(!m_aControllerInfo[i].info.isConnected && (deltaTime > 1000000))
+            if(!m_aControllerInfo[i].info.isConnected && (deltaTime > 12000))
             {
                 //Check for the controller
                 cmd = 0;
                 nBits = 8;
             }
-            else if(m_aControllerInfo[i].info.isConnected && (deltaTime > 1000000))
+            else if(m_aControllerInfo[i].info.isConnected && (deltaTime > 1000))
             {
                 nBits = 24;
                 if(m_aControllerInfo[i].info.doRumble)
@@ -208,8 +208,18 @@ void ControllerComm::ControllerInterfaceBackground()
                     uint8_t nLen = 0;
                     Read(&m_aControllerInfo[i], data, &nLen);
 
-                    if((m_aControllerInfo[i].info.LastCmd == POLL_CMD) || (m_aControllerInfo[i].info.LastCmd == POLL_RUMBLE_CMD))
-                        memcpy(&m_aControllerInfo[i].info.values, &data, sizeof(m_aControllerInfo[i].info.values));
+                    switch(m_aControllerInfo[i].info.LastCmd)
+                    {
+                        case POLL_CMD:
+                        case POLL_RUMBLE_CMD:
+                        memcpy(&m_aControllerInfo[i].info.values, data, sizeof(m_aControllerInfo[i].info.values));
+                        break;
+
+                        case 0:
+                        printf("Controller %d connected\n", i);
+                        m_aControllerInfo[i].info.isConnected = true;
+                        break;
+                    }                        
 
                     m_aControllerInfo[i].info.consecutiveTimeouts = 0; //Reset the consecutive timeouts
                     m_aControllerInfo[i].info.waitingForResponse = false; //Clear the flag waiting for response
@@ -224,7 +234,7 @@ void ControllerComm::ControllerInterfaceBackground()
 
                 if(m_aControllerInfo[i].info.isConnected && (m_aControllerInfo[i].info.consecutiveTimeouts >= 2))
                 {
-                    printf("Controller disconnect %d\n", i);
+                    printf("Controller %d disconnected\n", i);
                     m_aControllerInfo[i].info.isConnected = false;
                 }
             }

@@ -112,8 +112,7 @@ void WirelessCommunicationCore()
                 if(bDataReceived)
                 {
                     //Copy over the controller data from the controller side interface
-                    memcpy(consoleBuffer, rxBuf, nBytesRead);
-
+                    memcpy(consoleBuffer, rxBuf, sizeof(consoleBuffer));
                     //Write controller side controller data
                     wirelessComm.Write(controllerBuffer, sizeof(controllerBuffer));
                     //Clear the received flag to wait to transmit again
