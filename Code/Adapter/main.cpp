@@ -52,9 +52,15 @@ void ControllerCommunicationCore()
         if(nControllerDataOwner == CONTROLLER_COMM_OWNS_DATA)
         {
             if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+            {
                 controllerComm.GetControllerData(controllerBuffer);
+                controllerComm.SetConsolData(consoleBuffer);
+            }
             else //Console side interface
-                controllerComm.GetControllerData(consoleBuffer);
+            {
+                controllerComm.GetConsoleData(consoleBuffer);
+                controllerComm.SetControllerData(controllerBuffer);
+            }
 
             nControllerDataOwner = WIRELESS_COMM_OWNS_DATA;
         }

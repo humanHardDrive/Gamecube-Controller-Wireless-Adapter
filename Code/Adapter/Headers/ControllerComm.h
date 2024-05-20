@@ -26,7 +26,11 @@ public:
     void Init();
     void Background();
 
-    void GetControllerData(void* pBuf);
+    void GetControllerData(ControllerValues* pControllerData);
+    void SetControllerData(ControllerValues* pControllerData);
+
+    void GetConsoleData(void* pBuf);
+    void SetConsolData(void* pBuf);
 
     unsigned char AnyControllerConnected();
 

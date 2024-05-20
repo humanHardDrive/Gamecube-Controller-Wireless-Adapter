@@ -10,6 +10,8 @@
 #include "PinDefs.h"
 #include "Utils.h"
 
+static const ControllerValues NO_CONNECT = {0};
+
 ControllerComm::ControllerComm()
 {
     
@@ -236,6 +238,7 @@ void ControllerComm::ControllerInterfaceBackground()
                 {
                     printf("Controller %d disconnected\n", i);
                     m_aControllerInfo[i].info.isConnected = false;
+                    memset(&m_aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
                 }
             }
         }
@@ -244,60 +247,49 @@ void ControllerComm::ControllerInterfaceBackground()
 
 void ControllerComm::ConsoleInterfaceBackground()
 {
-    for(uint8_t i = 0; i < 1; i++)
+    for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        /*if(pio_interrupt_get(aControllerInfo[i].pio, aControllerInfo[i].sm))
+        if(pio_interrupt_get(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
         {
-            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
-            {
-                uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-                v >>= 1;
+            //Read the data to clear the buffer
+            uint32_t data[4] = {0};
+            uint8_t nLen = 0;
+            Read(&m_aControllerInfo[i], data, &nLen);
 
-                printf("Read %d 0x%x\n", i, v);
-            }
-
-            l_ControllerSwitchModeRX(&aControllerInfo[i]);
-            pio_interrupt_clear(aControllerInfo[i].pio, aControllerInfo[i].sm);
-        }*/
-        /*if(aControllerInfo[i].info.isConnected)
-        {
-            if(pio_interrupt_get(aControllerInfo[i].pio, aControllerInfo[i].sm))
+            //Only do something with it if the controller is connected
+            if(m_aControllerInfo[i].info.isConnected)
             {
-                while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
+                bool bKnown = false;
+                bool bRumble = false;
+
+                printf("Controller %d data 0x%x\n", i, data[0]);
+                switch(data[0])
                 {
-                    uint32_t v = pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-                    v >>= 1;
-
-                    if((v == POLL_CMD) || (v == POLL_RUMBLE_CMD))
+                    case 0:
+                    if(nLen == 8)
                     {
-                        l_ControllerCommWrite(&aControllerInfo[i], 0, 32);
-                        l_ControllerCommWrite(&aControllerInfo[i], 0, 32);
+                        bKnown = true;
+                    }
+                    break;
 
-                        aControllerInfo[i].info.doRumble = (v == POLL_RUMBLE_CMD);
-                    }
-                    else if(v == 0)
+                    case POLL_RUMBLE_CMD:
+                    bRumble = true;
+                    case POLL_CMD:
+                    if(nLen == 24)
                     {
-                        //printf("Query %d\n", i);
-                        l_ControllerCommWrite(&aControllerInfo[i], 0x90020, 24);
+                        m_aControllerInfo[i].info.doRumble = bRumble;
+                        bKnown = true;
                     }
-                    else
-                    {
-                        //Unknown command. Flush the rest of the FIFO
-                        while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
-                            pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-
-                        //Go back to RX
-                        l_ControllerSwitchModeRX(&aControllerInfo[i]);
-                    }
+                    break;
                 }
-                pio_interrupt_clear(aControllerInfo[i].pio, aControllerInfo[i].sm);
+
+                if(!bKnown)
+                    printf("Unkown CMD 0x%x Len %d\n", data[0], nLen);
             }
+
+            SwitchModeRX(&m_aControllerInfo[i]);
+            pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
         }
-        else
-        {
-            while(!pio_sm_is_rx_fifo_empty(aControllerInfo[i].pio, aControllerInfo[i].sm))
-                pio_sm_get_blocking(aControllerInfo[i].pio, aControllerInfo[i].sm);
-        }*/
     }
 }
 
@@ -309,30 +301,42 @@ void ControllerComm::Background()
         ConsoleInterfaceBackground();
 }
 
-void ControllerComm::GetControllerData(void *pBuf)
+void ControllerComm::SetControllerData(ControllerValues* pControllerData)
 {
-    if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+        memcpy(&m_aControllerInfo[i].info.values, &(pControllerData[i]), sizeof(ControllerValues));
+        if(memcmp(&m_aControllerInfo[i].info.values, &NO_CONNECT, sizeof(ControllerValues)))
+        {
+            if(!m_aControllerInfo[i].info.isConnected)
+                printf("Controller %d connected\n", i);
+
+            m_aControllerInfo[i].info.isConnected = true;
+        }
+        else
         {
             if(m_aControllerInfo[i].info.isConnected)
-            {
-                //Copy the controller values into the buffer
-                memcpy(&((ControllerValues*)pBuf)[i], &m_aControllerInfo[i].info.values, sizeof(ControllerValues));
-            }
-            else
-            {
-                //If the controller is not connected, set all of the data to 0
-                memset(&((ControllerValues*)pBuf)[i], 0, sizeof(ControllerValues));
-            }
+                printf("Controller %d disconnected\n", i);
+
+            m_aControllerInfo[i].info.isConnected = false;
         }
     }
-    else //Console side interface
+}
+
+void ControllerComm::GetConsoleData(void *pBuf)
+{
+}
+
+void ControllerComm::SetConsolData(void *pBuf)
+{
+}
+
+void ControllerComm::GetControllerData(ControllerValues* pControllerData)
+{
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        for(size_t i = 0; i < NUM_CONTROLLERS; i++)
-        {
-            ((uint8_t*)pBuf)[i] = m_aControllerInfo[i].info.doRumble;
-        }
+        //Copy the controller values into the buffer
+        memcpy(&(pControllerData[i]), &m_aControllerInfo[i].info.values, sizeof(ControllerValues));
     }
 }
 
