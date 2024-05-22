@@ -58,7 +58,7 @@ void ControllerCommunicationCore()
             }
             else //Console side interface
             {
-                controllerComm.GetConsoleData(consoleBuffer);
+                //controllerComm.GetConsoleData(consoleBuffer);
                 controllerComm.SetControllerData(controllerBuffer);
             }
 
@@ -103,7 +103,7 @@ void WirelessCommunicationCore()
                     if(bDataReceived)
                     {
                         //Copy over the controller data from the controller side interface
-                        memcpy(controllerBuffer, rxBuf, nBytesRead);
+                        memcpy(controllerBuffer, rxBuf, MAX_PAYLOAD_SIZE);
                     }
 
                     //Write console side controller data

@@ -5,6 +5,8 @@
 const uint32_t POLL_CMD = 0b010000000000001100000010;
 const uint32_t POLL_RUMBLE_CMD = 0b010000000000001100000011;
 
+const uint32_t CONTROLLER_ID = 0x900;
+
 typedef struct
 {
     //Analog triggers

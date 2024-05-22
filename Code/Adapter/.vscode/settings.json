@@ -3,5 +3,6 @@
         "*.pio": "plaintext",
         "stdlib.h": "c",
         "stdint.h": "c"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

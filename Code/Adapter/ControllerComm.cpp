@@ -10,7 +10,7 @@
 #include "PinDefs.h"
 #include "Utils.h"
 
-static const ControllerValues NO_CONNECT = {0};
+static ControllerValues NO_CONNECT;
 
 ControllerComm::ControllerComm()
 {
@@ -32,6 +32,8 @@ void ControllerComm::SwitchModeRX(ControllerCommInfo* pController)
 */
 void ControllerComm::Init()
 {
+    memset(&NO_CONNECT, 0, sizeof(ControllerValues));
+
     //Generate the offset for the communication PIO program
     uint offset = pio_add_program(pio0, &gcn_comm_program);
 
@@ -218,7 +220,7 @@ void ControllerComm::ControllerInterfaceBackground()
                         break;
 
                         case 0:
-                        printf("Controller %d connected\n", i);
+                        printf("Controller %d connected 0x%x (%d)\n", i, data[0], nLen);
                         m_aControllerInfo[i].info.isConnected = true;
                         break;
                     }                        
@@ -253,21 +255,23 @@ void ControllerComm::ConsoleInterfaceBackground()
         {
             //Read the data to clear the buffer
             uint32_t data[4] = {0};
+            bool bKnown = false;
             uint8_t nLen = 0;
+            
+            pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
             Read(&m_aControllerInfo[i], data, &nLen);
 
             //Only do something with it if the controller is connected
             if(m_aControllerInfo[i].info.isConnected)
             {
-                bool bKnown = false;
                 bool bRumble = false;
 
-                printf("Controller %d data 0x%x\n", i, data[0]);
                 switch(data[0])
                 {
                     case 0:
                     if(nLen == 8)
                     {
+                        Write(&m_aControllerInfo[i], (uint32_t*)&CONTROLLER_ID, 24);
                         bKnown = true;
                     }
                     break;
@@ -277,6 +281,7 @@ void ControllerComm::ConsoleInterfaceBackground()
                     case POLL_CMD:
                     if(nLen == 24)
                     {
+                        Write(&m_aControllerInfo[i], (uint32_t*)&m_aControllerInfo[i].info.values, 64);
                         m_aControllerInfo[i].info.doRumble = bRumble;
                         bKnown = true;
                     }
@@ -286,9 +291,9 @@ void ControllerComm::ConsoleInterfaceBackground()
                 if(!bKnown)
                     printf("Unkown CMD 0x%x Len %d\n", data[0], nLen);
             }
-
-            SwitchModeRX(&m_aControllerInfo[i]);
-            pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
+            
+            if(!bKnown)
+                SwitchModeRX(&m_aControllerInfo[i]);
         }
     }
 }
@@ -303,32 +308,27 @@ void ControllerComm::Background()
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)
 {
-    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    for(size_t i = 0; i < 1; i++)
     {
-        memcpy(&m_aControllerInfo[i].info.values, &(pControllerData[i]), sizeof(ControllerValues));
-        if(memcmp(&m_aControllerInfo[i].info.values, &NO_CONNECT, sizeof(ControllerValues)))
+        m_aControllerInfo[i].info.values = pControllerData[i];
+
+        if(m_aControllerInfo[i].info.values.pad)
         {
             if(!m_aControllerInfo[i].info.isConnected)
+            {
                 printf("Controller %d connected\n", i);
-
-            m_aControllerInfo[i].info.isConnected = true;
+                m_aControllerInfo[i].info.isConnected = true;
+            }
         }
         else
         {
             if(m_aControllerInfo[i].info.isConnected)
+            {
                 printf("Controller %d disconnected\n", i);
-
-            m_aControllerInfo[i].info.isConnected = false;
+                m_aControllerInfo[i].info.isConnected = false;
+            }
         }
     }
-}
-
-void ControllerComm::GetConsoleData(void *pBuf)
-{
-}
-
-void ControllerComm::SetConsolData(void *pBuf)
-{
 }
 
 void ControllerComm::GetControllerData(ControllerValues* pControllerData)
@@ -338,6 +338,14 @@ void ControllerComm::GetControllerData(ControllerValues* pControllerData)
         //Copy the controller values into the buffer
         memcpy(&(pControllerData[i]), &m_aControllerInfo[i].info.values, sizeof(ControllerValues));
     }
+}
+
+void ControllerComm::GetConsoleData(void *pBuf)
+{
+}
+
+void ControllerComm::SetConsolData(void *pBuf)
+{
 }
 
 unsigned char ControllerComm::AnyControllerConnected()
