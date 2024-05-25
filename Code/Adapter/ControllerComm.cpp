@@ -154,7 +154,7 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
             addIn <<= (32 - nOffset);
             pBuf[i] |= addIn;
         }
-        else
+        else if(nWords > 1)
         {
             pBuf[i] >>= nOffset;
         }
