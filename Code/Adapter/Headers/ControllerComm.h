@@ -8,16 +8,6 @@
 
 #define NUM_CONTROLLERS 4
 
-typedef struct
-{
-    ControllerInfo info;
-
-    PIO pio;
-    uint sm;
-    uint offset;
-    uint pin;
-}ControllerCommInfo;
-
 class ControllerComm
 {
 public:
@@ -35,6 +25,30 @@ public:
     unsigned char AnyControllerConnected();
 
 private:
+    enum class ControllerState
+    {
+        NOT_CONNECTED = 0,
+        STARTUP_CONFIG,
+        POLLING
+    };
+
+    typedef struct
+    {
+        ControllerInfo info;
+
+        PIO pio;
+        uint sm;
+        uint offset;
+        uint pin;
+
+        ControllerState state;
+        uint8_t waitingForResponse;
+        uint8_t consecutiveTimeouts;
+        uint32_t LastCmd;
+        absolute_time_t LastPollTime;
+
+    }ControllerCommInfo;
+
     void SwitchModeTX(ControllerCommInfo* pController);
     void SwitchModeRX(ControllerCommInfo* pController);
 

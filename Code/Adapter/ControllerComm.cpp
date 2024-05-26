@@ -51,9 +51,10 @@ void ControllerComm::Init()
 
         //Initialize communication values
         m_aControllerInfo[i].info.isConnected = false;
-        m_aControllerInfo[i].info.LastPollTime = get_absolute_time();
-        m_aControllerInfo[i].info.waitingForResponse = false;
-        m_aControllerInfo[i].info.consecutiveTimeouts = 0;
+        m_aControllerInfo[i].state = ControllerState::NOT_CONNECTED;
+        m_aControllerInfo[i].LastPollTime = get_absolute_time();
+        m_aControllerInfo[i].waitingForResponse = false;
+        m_aControllerInfo[i].consecutiveTimeouts = 0;
 
         gpio_init(m_aControllerInfo[i].pin);
 
@@ -166,9 +167,9 @@ void ControllerComm::ControllerInterfaceBackground()
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         //Keep track of how much time has elapsed since the last message
-        uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].info.LastPollTime, get_absolute_time());
+        uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].LastPollTime, get_absolute_time());
         
-        if(!m_aControllerInfo[i].info.waitingForResponse)
+        if(!m_aControllerInfo[i].waitingForResponse)
         {
             uint32_t cmd, nBits;
             cmd = nBits = 0;
@@ -177,27 +178,42 @@ void ControllerComm::ControllerInterfaceBackground()
             while(!pio_sm_is_rx_fifo_empty(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
                 pio_sm_get_blocking(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
 
-            if(!m_aControllerInfo[i].info.isConnected && (deltaTime > 12000))
+            switch(m_aControllerInfo[i].state)
             {
-                //Check for the controller
-                cmd = 0;
-                nBits = 8;
-            }
-            else if(m_aControllerInfo[i].info.isConnected && (deltaTime > 1000))
-            {
-                nBits = 24;
-                if(m_aControllerInfo[i].info.doRumble)
-                    cmd = POLL_RUMBLE_CMD;
-                else
-                    cmd = POLL_CMD;
+                case ControllerState::NOT_CONNECTED:
+                if(deltaTime > 12000)
+                {
+                    cmd = CONNECTED_MSG.first;
+                    nBits = CONNECTED_MSG.second;
+                }
+                break;
+
+                case ControllerState::STARTUP_CONFIG:
+                if(deltaTime > 12000)
+                {
+                    cmd = CONFIG_MSG.first;
+                    nBits = CONFIG_MSG.second;
+                }
+                break;
+
+                case ControllerState::POLLING:
+                if(deltaTime > 1000)
+                {
+                    nBits = POLL_CMD.second;
+                    if(m_aControllerInfo[i].info.doRumble)
+                        cmd = POLL_RUMBLE_CMD.first;
+                    else
+                        cmd = POLL_CMD.first;
+                }
+                break;
             }
 
             //A write of 0 bits is ignored
             if(nBits > 0)
             {
-                m_aControllerInfo[i].info.waitingForResponse = true;
-                m_aControllerInfo[i].info.LastPollTime = get_absolute_time();
-                m_aControllerInfo[i].info.LastCmd = cmd;
+                m_aControllerInfo[i].waitingForResponse = true;
+                m_aControllerInfo[i].LastPollTime = get_absolute_time();
+                m_aControllerInfo[i].LastCmd = cmd;
 
                 Write(&m_aControllerInfo[i], &cmd, nBits);
             }
@@ -212,31 +228,40 @@ void ControllerComm::ControllerInterfaceBackground()
                     uint8_t nLen = 0;
                     Read(&m_aControllerInfo[i], data, &nLen);
 
-                    switch(m_aControllerInfo[i].info.LastCmd)
+                    switch(m_aControllerInfo[i].LastCmd)
                     {
-                        case POLL_CMD:
-                        case POLL_RUMBLE_CMD:
+                        case POLL_CMD.first:
+                        case POLL_RUMBLE_CMD.first:
                         memcpy(&m_aControllerInfo[i].info.values, data, sizeof(m_aControllerInfo[i].info.values));
+                        
                         break;
 
-                        case 0:
+                        case CONFIG_MSG.first:
+                        memcpy(&m_aControllerInfo[i].info.configInfo, data, sizeof(m_aControllerInfo[i].info.configInfo));
+                        printf("Staring to poll controller %d\n", i);
+                        m_aControllerInfo[i].state = ControllerState::POLLING;
+                        break;
+
+                        case CONNECTED_MSG.first:
                         printf("Controller %d connected 0x%x (%d)\n", i, data[0], nLen);
+                        m_aControllerInfo[i].info.id = data[0];
                         m_aControllerInfo[i].info.isConnected = true;
+                        m_aControllerInfo[i].state = ControllerState::STARTUP_CONFIG;
                         break;
                     }                        
 
-                    m_aControllerInfo[i].info.consecutiveTimeouts = 0; //Reset the consecutive timeouts
-                    m_aControllerInfo[i].info.waitingForResponse = false; //Clear the flag waiting for response
+                    m_aControllerInfo[i].consecutiveTimeouts = 0; //Reset the consecutive timeouts
+                    m_aControllerInfo[i].waitingForResponse = false; //Clear the flag waiting for response
                     pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm); //Clear the receive interrupt
                 }
             }
             else
             {
-                m_aControllerInfo[i].info.consecutiveTimeouts++;
-                m_aControllerInfo[i].info.waitingForResponse = false;
+                m_aControllerInfo[i].consecutiveTimeouts++;
+                m_aControllerInfo[i].waitingForResponse = false;
                 SwitchModeTX(&m_aControllerInfo[i]);
 
-                if(m_aControllerInfo[i].info.isConnected && (m_aControllerInfo[i].info.consecutiveTimeouts >= 2))
+                if(m_aControllerInfo[i].info.isConnected && (m_aControllerInfo[i].consecutiveTimeouts >= 2))
                 {
                     printf("Controller %d disconnected\n", i);
                     m_aControllerInfo[i].info.isConnected = false;
@@ -268,18 +293,26 @@ void ControllerComm::ConsoleInterfaceBackground()
 
                 switch(data[0])
                 {
-                    case 0:
-                    if(nLen == 8)
+                    case CONNECTED_MSG.first:
+                    if(nLen == CONNECTED_MSG.second)
                     {
                         Write(&m_aControllerInfo[i], (uint32_t*)&CONTROLLER_ID, 24);
                         bKnown = true;
                     }
                     break;
 
-                    case POLL_RUMBLE_CMD:
+                    case CONFIG_MSG.first:
+                    if(nLen == CONFIG_MSG.second)
+                    {
+                        Write(&m_aControllerInfo[i], m_aControllerInfo[i].info.configInfo, 80);
+                        bKnown = true;
+                    }
+                    break;
+
+                    case POLL_RUMBLE_CMD.first:
                     bRumble = true;
-                    case POLL_CMD:
-                    if(nLen == 24)
+                    case POLL_CMD.first:
+                    if(nLen == POLL_CMD.second)
                     {
                         Write(&m_aControllerInfo[i], (uint32_t*)&m_aControllerInfo[i].info.values, 64);
                         m_aControllerInfo[i].info.doRumble = bRumble;

@@ -1,11 +1,14 @@
 #include <stdint.h>
+#include <utility>
 
 #include "pico/time.h"
 
-const uint32_t POLL_CMD = 0b010000000000001100000010;
-const uint32_t POLL_RUMBLE_CMD = 0b010000000000001100000011;
+constexpr std::pair<uint32_t, uint8_t> POLL_CMD = {0b010000000000001100000010, 24};
+constexpr std::pair<uint32_t, uint8_t> POLL_RUMBLE_CMD = {0b010000000000001100000011, 24};
+constexpr std::pair<uint32_t, uint8_t> CONNECTED_MSG = {0x00, 8};
+constexpr std::pair<uint32_t, uint8_t> CONFIG_MSG = {0x41, 8};
 
-const uint32_t CONTROLLER_ID = 0x900;
+const uint32_t CONTROLLER_ID = 0x90020;
 
 typedef struct
 {
@@ -40,13 +43,9 @@ typedef struct
 typedef struct
 {
     ControllerValues values;
-    
+    uint32_t configInfo[3];
+    uint32_t id;
+
     uint8_t isConnected;
     uint8_t doRumble;
-    uint8_t waitingForResponse;
-
-    uint8_t consecutiveTimeouts;
-
-    uint32_t LastCmd;
-    absolute_time_t LastPollTime;
 }ControllerInfo;
