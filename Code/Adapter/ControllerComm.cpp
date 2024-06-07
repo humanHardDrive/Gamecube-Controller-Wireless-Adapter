@@ -41,7 +41,11 @@ void ControllerComm::Init()
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         //Clear out the controller values
-        memset(&m_aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
+        memset(&m_aControllerInfo[i].info.controllerValues, 0, sizeof(ControllerValues));
+
+        //Clear out console values
+        m_aControllerInfo[i].info.consoleValues.doRecal = false;
+        m_aControllerInfo[i].info.consoleValues.doRumble = false;
 
         //Initialize the PIO references
         m_aControllerInfo[i].pio = pio0;
@@ -155,7 +159,7 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
             addIn <<= (32 - nOffset);
             pBuf[i] |= addIn;
         }
-        else if(nWords > 1)
+        else if(nWords > 1) //Only applies to multiple word messages
         {
             pBuf[i] >>= nOffset;
         }
@@ -169,6 +173,7 @@ void ControllerComm::ControllerInterfaceBackground()
         //Keep track of how much time has elapsed since the last message
         uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].LastPollTime, get_absolute_time());
         
+        //Check if it's time to send a new message
         if(!m_aControllerInfo[i].waitingForResponse)
         {
             uint32_t cmd, nBits;
@@ -183,27 +188,37 @@ void ControllerComm::ControllerInterfaceBackground()
                 case ControllerState::NOT_CONNECTED:
                 if(deltaTime > 12000)
                 {
-                    cmd = CONNECTED_MSG.first;
-                    nBits = CONNECTED_MSG.second;
+                    cmd = PROBE_MSG.first;
+                    nBits = PROBE_MSG.second;
                 }
                 break;
 
                 case ControllerState::STARTUP_CONFIG:
                 if(deltaTime > 12000)
                 {
-                    cmd = CONFIG_MSG.first;
-                    nBits = CONFIG_MSG.second;
+                    cmd = PROBE_ORIGIN_MSG.first;
+                    nBits = PROBE_ORIGIN_MSG.second;
                 }
                 break;
 
                 case ControllerState::POLLING:
                 if(deltaTime > 1000)
                 {
-                    nBits = POLL_CMD.second;
-                    if(m_aControllerInfo[i].info.doRumble)
-                        cmd = POLL_RUMBLE_CMD.first;
+                    if(m_aControllerInfo[i].info.consoleValues.doRecal)
+                    {
+                        nBits = PROBE_ORIGIN_RECAL_MSG.second;
+                        cmd = PROBE_ORIGIN_RECAL_MSG.first;
+                        
+                        m_aControllerInfo[i].info.consoleValues.doRecal = false;
+                    }
                     else
-                        cmd = POLL_CMD.first;
+                    {
+                        nBits = POLL_MSG.second;
+                        if(m_aControllerInfo[i].info.consoleValues.doRumble)
+                            cmd = POLL_RUMBLE_MSG.first;
+                        else
+                            cmd = POLL_MSG.first;
+                    }
                 }
                 break;
             }
@@ -218,33 +233,34 @@ void ControllerComm::ControllerInterfaceBackground()
                 Write(&m_aControllerInfo[i], &cmd, nBits);
             }
         }
-        else
+        else //Handle waiting for a response
         {
             if(deltaTime < 1000) //1mS timeout
             {
+                //Check if the RX interrupt is set
                 if(pio_interrupt_get(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
                 {
                     uint32_t data[4] = {0};
                     uint8_t nLen = 0;
+                    //Read the data
                     Read(&m_aControllerInfo[i], data, &nLen);
 
                     switch(m_aControllerInfo[i].LastCmd)
                     {
-                        case POLL_CMD.first:
-                        case POLL_RUMBLE_CMD.first:
-                        memcpy(&m_aControllerInfo[i].info.values, data, sizeof(m_aControllerInfo[i].info.values));
+                        case POLL_MSG.first:
+                        case POLL_RUMBLE_MSG.first:
+                        memcpy(&m_aControllerInfo[i].info.controllerValues, data, sizeof(m_aControllerInfo[i].info.controllerValues));
                         
                         break;
 
-                        case CONFIG_MSG.first:
-                        memcpy(&m_aControllerInfo[i].info.configInfo, data, sizeof(m_aControllerInfo[i].info.configInfo));
+                        case PROBE_ORIGIN_RECAL_MSG.first:
+                        case PROBE_ORIGIN_MSG.first:
                         printf("Staring to poll controller %d\n", i);
                         m_aControllerInfo[i].state = ControllerState::POLLING;
                         break;
 
-                        case CONNECTED_MSG.first:
+                        case PROBE_MSG.first:
                         printf("Controller %d connected 0x%x (%d)\n", i, data[0], nLen);
-                        m_aControllerInfo[i].info.id = data[0];
                         m_aControllerInfo[i].info.isConnected = true;
                         m_aControllerInfo[i].state = ControllerState::STARTUP_CONFIG;
                         break;
@@ -265,7 +281,8 @@ void ControllerComm::ControllerInterfaceBackground()
                 {
                     printf("Controller %d disconnected\n", i);
                     m_aControllerInfo[i].info.isConnected = false;
-                    memset(&m_aControllerInfo[i].info.values, 0, sizeof(ControllerValues));
+                    m_aControllerInfo[i].state = ControllerState::NOT_CONNECTED;
+                    memset(&m_aControllerInfo[i].info.controllerValues, 0, sizeof(ControllerValues));
                 }
             }
         }
@@ -290,32 +307,44 @@ void ControllerComm::ConsoleInterfaceBackground()
             if(m_aControllerInfo[i].info.isConnected)
             {
                 bool bRumble = false;
+                bool bRecal = false;
 
                 switch(data[0])
                 {
-                    case CONNECTED_MSG.first:
-                    if(nLen == CONNECTED_MSG.second)
+                    case PROBE_RECAL_MSG.first:
+                    bRecal = true;
+                    case PROBE_MSG.first:
+                    if(nLen == PROBE_MSG.second)
                     {
-                        Write(&m_aControllerInfo[i], (uint32_t*)&CONTROLLER_ID, 24);
+                        m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
+                        Write(&m_aControllerInfo[i], (uint32_t*)&PROBE_RSP.first, PROBE_RSP.second);
                         bKnown = true;
                     }
                     break;
 
-                    case CONFIG_MSG.first:
-                    if(nLen == CONFIG_MSG.second)
+                    case PROBE_ORIGIN_RECAL_MSG.first:
+                    bRecal = true;
+                    case PROBE_ORIGIN_MSG.first:
+                    if(nLen == PROBE_ORIGIN_MSG.second)
                     {
-                        Write(&m_aControllerInfo[i], m_aControllerInfo[i].info.configInfo, 80);
+                        uint8_t buf[((PROBE_ORIGIN_RSP.second - 1) / 8) + 1];
+                        
+                        memset(buf, 0, sizeof(buf));
+                        //memcpy(&buf[2], &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
+
+                        m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
+                        Write(&m_aControllerInfo[i], (uint32_t*)buf, PROBE_ORIGIN_RSP.second);
                         bKnown = true;
                     }
                     break;
 
-                    case POLL_RUMBLE_CMD.first:
+                    case POLL_RUMBLE_MSG.first:
                     bRumble = true;
-                    case POLL_CMD.first:
-                    if(nLen == POLL_CMD.second)
+                    case POLL_MSG.first:
+                    if(nLen == POLL_MSG.second)
                     {
-                        Write(&m_aControllerInfo[i], (uint32_t*)&m_aControllerInfo[i].info.values, 64);
-                        m_aControllerInfo[i].info.doRumble = bRumble;
+                        Write(&m_aControllerInfo[i], (uint32_t*)&m_aControllerInfo[i].info.controllerValues, POLL_RSP.second);
+                        m_aControllerInfo[i].info.consoleValues.doRumble = bRumble;
                         bKnown = true;
                     }
                     break;
@@ -326,7 +355,7 @@ void ControllerComm::ConsoleInterfaceBackground()
             }
             
             if(!bKnown)
-                SwitchModeRX(&m_aControllerInfo[i]);
+                Write(&m_aControllerInfo[i], (uint32_t*)&PROBE_MSG.first, PROBE_MSG.second);
         }
     }
 }
@@ -343,9 +372,9 @@ void ControllerComm::SetControllerData(ControllerValues* pControllerData)
 {
     for(size_t i = 0; i < 1; i++)
     {
-        m_aControllerInfo[i].info.values = pControllerData[i];
+        m_aControllerInfo[i].info.controllerValues = pControllerData[i];
 
-        if(m_aControllerInfo[i].info.values.pad)
+        if(m_aControllerInfo[i].info.controllerValues.pad)
         {
             if(!m_aControllerInfo[i].info.isConnected)
             {
@@ -369,16 +398,24 @@ void ControllerComm::GetControllerData(ControllerValues* pControllerData)
     for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         //Copy the controller values into the buffer
-        memcpy(&(pControllerData[i]), &m_aControllerInfo[i].info.values, sizeof(ControllerValues));
+        memcpy(&(pControllerData[i]), &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
     }
 }
 
-void ControllerComm::GetConsoleData(void *pBuf)
+void ControllerComm::GetConsoleData(ConsoleValues* pConsoleData)
 {
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        memcpy(&(pConsoleData[i]), &m_aControllerInfo[i].info.consoleValues, sizeof(ConsoleValues));
+    }
 }
 
-void ControllerComm::SetConsolData(void *pBuf)
+void ControllerComm::SetConsoleData(ConsoleValues* pConsoleData)
 {
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        memcpy(&m_aControllerInfo[i].info.consoleValues, &(pConsoleData[i]), sizeof(ConsoleValues));
+    }
 }
 
 unsigned char ControllerComm::AnyControllerConnected()

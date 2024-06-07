@@ -24,7 +24,7 @@ WirelessComm wirelessComm;
 uint8_t nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
 //Controller data buffer
 ControllerValues controllerBuffer[NUM_CONTROLLERS];
-uint8_t consoleBuffer[NUM_CONTROLLERS];
+ConsoleValues consoleBuffer[NUM_CONTROLLERS];
 //This buffer is ping-ponged between the controller and console interfaces using the switch above
 //Each side takes turns updating, then consuming the data (controller produces, wireless consumes)
 //The switch lets either side know when it is safe to do so
@@ -54,11 +54,11 @@ void ControllerCommunicationCore()
             if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
             {
                 controllerComm.GetControllerData(controllerBuffer);
-                controllerComm.SetConsolData(consoleBuffer);
+                controllerComm.SetConsoleData(consoleBuffer);
             }
             else //Console side interface
             {
-                //controllerComm.GetConsoleData(consoleBuffer);
+                controllerComm.GetConsoleData(consoleBuffer);
                 controllerComm.SetControllerData(controllerBuffer);
             }
 
@@ -157,8 +157,8 @@ int main()
         /*
         This is the controller side interface
         Poll for controller connection
-        Poll for controller values
-        Report controller values back to the console side interface
+        Poll for controller controllerValues
+        Report controller controllerValues back to the console side interface
         */
        printf("Controller side interface\n");
        SetInterfaceType(CONTROLLER_SIDE_INTERFACE);
@@ -174,9 +174,6 @@ int main()
        printf("Console side interface\n");
        SetInterfaceType(CONSOLE_SIDE_INTERFACE);
     }
-
-    printf("Size of controller struct %u\n", sizeof(ControllerValues));
-    printf("Size of controller buffer %u\n", sizeof(controllerBuffer));
 
     //Start the controller communication on the second core
     multicore_launch_core1(ControllerCommunicationCore);

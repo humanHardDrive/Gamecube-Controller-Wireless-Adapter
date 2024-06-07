@@ -3,12 +3,16 @@
 
 #include "pico/time.h"
 
-constexpr std::pair<uint32_t, uint8_t> POLL_CMD = {0b010000000000001100000010, 24};
-constexpr std::pair<uint32_t, uint8_t> POLL_RUMBLE_CMD = {0b010000000000001100000011, 24};
-constexpr std::pair<uint32_t, uint8_t> CONNECTED_MSG = {0x00, 8};
-constexpr std::pair<uint32_t, uint8_t> CONFIG_MSG = {0x41, 8};
+constexpr std::pair<uint32_t, uint8_t> POLL_MSG = {0b010000000000001100000000, 24};
+constexpr std::pair<uint32_t, uint8_t> POLL_RUMBLE_MSG = {0b010000000000001100000001, 24};
+constexpr std::pair<uint32_t, uint8_t> PROBE_MSG = {0x00, 8};
+constexpr std::pair<uint32_t, uint8_t> PROBE_RECAL_MSG = {0xFF, 8};
+constexpr std::pair<uint32_t, uint8_t> PROBE_ORIGIN_MSG = {0x41, 8};
+constexpr std::pair<uint32_t, uint8_t> PROBE_ORIGIN_RECAL_MSG = {0x42, 8};
 
-const uint32_t CONTROLLER_ID = 0x90020;
+constexpr std::pair<uint32_t, uint8_t> PROBE_RSP = {0x090003, 24};
+constexpr std::pair<uint32_t, uint8_t> PROBE_ORIGIN_RSP = {0, 80};
+constexpr std::pair<uint32_t, uint8_t> POLL_RSP = {0, 64};
 
 typedef struct
 {
@@ -32,20 +36,27 @@ typedef struct
     uint8_t ZBtn : 1;
     uint8_t RBtn : 1;
     uint8_t LBtn : 1;
-    uint8_t pad : 1;
+    uint8_t pad : 1;    //Always 1
     uint8_t ABtn : 1;
     uint8_t BBtn : 1;
     uint8_t XBtn : 1;
     uint8_t YBtn : 1;
-    uint8_t StartBtn : 1;
+    uint8_t StartBtn : 1;    
+
+    uint8_t pad2 : 3; //Always 0
+
 }ControllerValues;
 
 typedef struct
 {
-    ControllerValues values;
-    uint32_t configInfo[3];
-    uint32_t id;
-
-    uint8_t isConnected;
     uint8_t doRumble;
+    uint8_t doRecal;
+}ConsoleValues;
+
+typedef struct
+{
+    uint8_t isConnected;
+
+    ControllerValues controllerValues;
+    ConsoleValues consoleValues;
 }ControllerInfo;
