@@ -19,8 +19,8 @@ public:
     void GetControllerData(ControllerValues* pControllerData);
     void SetControllerData(ControllerValues* pControllerData);
 
-    void GetConsoleData(void* pBuf);
-    void SetConsolData(void* pBuf);
+    void GetConsoleData(ConsoleValues* pConsoleData);
+    void SetConsoleData(ConsoleValues* pConsoleData);
 
     unsigned char AnyControllerConnected();
 
