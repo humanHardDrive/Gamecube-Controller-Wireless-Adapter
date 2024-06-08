@@ -40,6 +40,7 @@ void WirelessComm::Init()
         m_Radio.openReadingPipe(1, 0x10101010);
     }
 
+    m_Radio.setCRCLength(rf24_crclength_e::RF24_CRC_16);
     m_Radio.setAutoAck(false);
     m_Radio.setDataRate(rf24_datarate_e::RF24_2MBPS);
 
