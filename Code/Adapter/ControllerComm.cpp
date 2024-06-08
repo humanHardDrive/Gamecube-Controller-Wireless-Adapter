@@ -153,15 +153,14 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
 
     for(uint8_t i = 0; i < nWords; i++)
     {
+        if((i > 0) && (nWords > 1))
+            pBuf[i] >>= nOffset;
+
         if(i < (nWords - 1))
         {
             uint32_t addIn = pBuf[i + 1] & mask;
             addIn <<= (32 - nOffset);
             pBuf[i] |= addIn;
-        }
-        else if(nWords > 1) //Only applies to multiple word messages
-        {
-            pBuf[i] >>= nOffset;
         }
     }
 }
@@ -327,12 +326,13 @@ void ControllerComm::ConsoleInterfaceBackground()
                     case PROBE_ORIGIN_MSG.first:
                     if(nLen == PROBE_ORIGIN_MSG.second)
                     {
-                        uint8_t buf[((PROBE_ORIGIN_RSP.second - 1) / 8) + 1];
-                        
-                        memset(buf, 0, sizeof(buf));
-                        //memcpy(&buf[2], &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
+                        uint8_t buf[12] = {0}; //12 to align it to 32-bit
+                        //Copy in the controller data with the 2 null bytes
+                        memcpy(&buf[2], &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
 
+                        //Set the recal flag if neccessary
                         m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
+                        //Write the response
                         Write(&m_aControllerInfo[i], (uint32_t*)buf, PROBE_ORIGIN_RSP.second);
                         bKnown = true;
                     }
@@ -343,7 +343,10 @@ void ControllerComm::ConsoleInterfaceBackground()
                     case POLL_MSG.first:
                     if(nLen == POLL_MSG.second)
                     {
-                        Write(&m_aControllerInfo[i], (uint32_t*)&m_aControllerInfo[i].info.controllerValues, POLL_RSP.second);
+                        uint32_t buf[2] = {0};
+                        memcpy(buf, &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
+
+                        Write(&m_aControllerInfo[i], buf, POLL_RSP.second);
                         m_aControllerInfo[i].info.consoleValues.doRumble = bRumble;
                         bKnown = true;
                     }
