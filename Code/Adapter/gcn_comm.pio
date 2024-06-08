@@ -48,8 +48,6 @@ rx_data:
     jmp pin idle_check_start    side 0      ;If the pin is high, this could be the start of the stop bit. Go to the idle check
 
     wait 1 pin 0                side 0      ;Wait for the pin to go back high
-    wait 0 pin 0                side 0      ;Wait for the pin to fall at the next bit
-    jmp bitloop                 side 0 [6]  ;Jump back to the loop start, then delay until half way through the bit
 
 idle_check_start:
     set y, T2                   side 0      ;Set a counter to a long count to find the idle
