@@ -12,10 +12,12 @@
 
 #include "ControllerComm.h"
 #include "WirelessComm.h"
+#include "PowerManager.h"
 
 //Communication objects
 ControllerComm controllerComm;
 WirelessComm wirelessComm;
+PowerManager powerManager;
 
 #define CONTROLLER_COMM_OWNS_DATA   0
 #define WIRELESS_COMM_OWNS_DATA     1
@@ -37,6 +39,8 @@ to allow the main core to do wireless/USB communication
 */
 void ControllerCommunicationCore()
 {
+    absolute_time_t lastControllerConnectedTime = get_absolute_time();
+
     //Signal back that the core has started
     multicore_fifo_push_blocking(0);
     printf("Controller core started\n");
@@ -64,13 +68,27 @@ void ControllerCommunicationCore()
 
             nControllerDataOwner = WIRELESS_COMM_OWNS_DATA;
         }
+
+        if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+        {
+            if(!controllerComm.AnyControllerConnected() &&
+                (absolute_time_diff_us(lastControllerConnectedTime, get_absolute_time()) > 100000))
+            {
+                powerManager.Sleep();
+            }
+            else if(controllerComm.AnyControllerConnected())
+            {
+                lastControllerConnectedTime = get_absolute_time();
+            }
+        }
     }
 }
 
 void WirelessCommunicationCore()
 {
     bool bDataReceived = false;
-    absolute_time_t lastMsgTime = get_absolute_time();
+    absolute_time_t lastMsgTXTime = get_absolute_time();
+    absolute_time_t lastMsgRXTime = get_absolute_time();
 
     printf("Wireless core started\n");
 
@@ -88,17 +106,20 @@ void WirelessCommunicationCore()
             uint8_t nBytesRead = 0;
 
             if(nBytesRead = wirelessComm.Read(rxBuf, MAX_PAYLOAD_SIZE))
+            {
                 bDataReceived = true;
+                lastMsgRXTime = get_absolute_time();
+            }
 
             if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
             {
-                uint deltaTime = absolute_time_diff_us(lastMsgTime, get_absolute_time());
+                uint deltaTime = absolute_time_diff_us(lastMsgTXTime, get_absolute_time());
                 
                 //Either a response has been recieved from the controller side interface
                 //Or more than 1 millisecond has elapsed
                 if(deltaTime > 1000)
                 {
-                    lastMsgTime = get_absolute_time();
+                    lastMsgTXTime = get_absolute_time();
 
                     if(bDataReceived)
                     {
@@ -174,6 +195,8 @@ int main()
        printf("Console side interface\n");
        SetInterfaceType(CONSOLE_SIDE_INTERFACE);
     }
+
+    powerManager.Init();
 
     //Start the controller communication on the second core
     multicore_launch_core1(ControllerCommunicationCore);

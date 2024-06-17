@@ -10,8 +10,6 @@
 #include "PinDefs.h"
 #include "Utils.h"
 
-static ControllerValues NO_CONNECT;
-
 ControllerComm::ControllerComm()
 {
     
@@ -30,10 +28,8 @@ void ControllerComm::SwitchModeRX(ControllerCommInfo* pController)
 /*
 
 */
-void ControllerComm::Init()
+bool ControllerComm::Init()
 {
-    memset(&NO_CONNECT, 0, sizeof(ControllerValues));
-
     //Generate the offset for the communication PIO program
     uint offset = pio_add_program(pio0, &gcn_comm_program);
 
@@ -51,7 +47,8 @@ void ControllerComm::Init()
         m_aControllerInfo[i].pio = pio0;
         m_aControllerInfo[i].sm = i;
         m_aControllerInfo[i].offset = offset;
-        m_aControllerInfo[i].pin = CONTROLLER_DATA_BASE_PIN + i;
+        m_aControllerInfo[i].commPin = CONTROLLER_DATA_BASE_PIN + i;
+        m_aControllerInfo[i].connectPin = CONTROLLER_CONNECTED_BASE_PIN + i;
 
         //Initialize communication values
         m_aControllerInfo[i].info.isConnected = false;
@@ -60,13 +57,18 @@ void ControllerComm::Init()
         m_aControllerInfo[i].waitingForResponse = false;
         m_aControllerInfo[i].consecutiveTimeouts = 0;
 
-        gpio_init(m_aControllerInfo[i].pin);
+        gpio_init(m_aControllerInfo[i].commPin);
+        gpio_init(m_aControllerInfo[i].connectPin);
+
+        gpio_set_dir(m_aControllerInfo[i].connectPin, GPIO_OUT);
+
+        gpio_put(m_aControllerInfo[i].connectPin, false);
 
         //Initialize communication with the communication PIO
         gcn_comm_program_init(m_aControllerInfo[i].pio, //PIO
                               m_aControllerInfo[i].sm,  //State machine
                               m_aControllerInfo[i].offset, //Program offset
-                              m_aControllerInfo[i].pin, //Pin to read/write
+                              m_aControllerInfo[i].commPin, //Pin to read/write
                               250000); //Communication speed. 250KHz (4uS per bit)
         
         if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
@@ -74,6 +76,8 @@ void ControllerComm::Init()
         else
             SwitchModeRX(&m_aControllerInfo[i]); //Console side starts in RX to recieve data from the console
     }
+
+    return true;
 }
 
 /*Write data out to the controller through the PIO
@@ -208,6 +212,7 @@ void ControllerComm::ControllerInterfaceBackground()
                         nBits = PROBE_ORIGIN_RECAL_MSG.second;
                         cmd = PROBE_ORIGIN_RECAL_MSG.first;
                         
+                        printf("Controller %d recal\n", i);
                         m_aControllerInfo[i].info.consoleValues.doRecal = false;
                     }
                     else
@@ -292,6 +297,9 @@ void ControllerComm::ConsoleInterfaceBackground()
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
+        uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].LastPollTime, get_absolute_time());
+        m_aControllerInfo[i].LastPollTime = get_absolute_time();
+
         if(pio_interrupt_get(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
         {
             //Read the data to clear the buffer
@@ -354,7 +362,7 @@ void ControllerComm::ConsoleInterfaceBackground()
                 }
 
                 if(!bKnown)
-                    printf("Unkown CMD 0x%x Len %d\n", data[0], nLen);
+                    printf("Unkown CMD 0x%x Len %d %u\n", data[0], nLen, deltaTime);
             }
             
             if(!bKnown)
@@ -369,11 +377,19 @@ void ControllerComm::Background()
         ControllerInterfaceBackground();
     else
         ConsoleInterfaceBackground();
+
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        if(m_aControllerInfo[i].info.isConnected)
+            gpio_put(m_aControllerInfo[i].connectPin, true);
+        else
+            gpio_put(m_aControllerInfo[i].connectPin, false);
+    }
 }
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)
 {
-    for(size_t i = 0; i < 1; i++)
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         m_aControllerInfo[i].info.controllerValues = pControllerData[i];
 
@@ -424,4 +440,8 @@ void ControllerComm::SetConsoleData(ConsoleValues* pConsoleData)
 unsigned char ControllerComm::AnyControllerConnected()
 {
     return 0;
+}
+
+void ControllerComm::Sleep()
+{
 }

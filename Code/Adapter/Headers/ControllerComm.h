@@ -5,15 +5,16 @@
 #include "hardware/pio.h"
 
 #include "ControllerDefs.h"
+#include "ModuleTemplate.h"
 
 #define NUM_CONTROLLERS 4
 
-class ControllerComm
+class ControllerComm : public ModuleTemplate
 {
 public:
     ControllerComm();
 
-    void Init();
+    bool Init();
     void Background();
 
     void GetControllerData(ControllerValues* pControllerData);
@@ -23,6 +24,8 @@ public:
     void SetConsoleData(ConsoleValues* pConsoleData);
 
     unsigned char AnyControllerConnected();
+
+    void Sleep();
 
 private:
     enum class ControllerState
@@ -39,7 +42,8 @@ private:
         PIO pio;
         uint sm;
         uint offset;
-        uint pin;
+        uint commPin;
+        uint connectPin;
 
         ControllerState state;
         uint8_t waitingForResponse;
