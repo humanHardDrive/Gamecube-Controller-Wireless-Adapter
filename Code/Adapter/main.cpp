@@ -163,13 +163,8 @@ int main()
 
     printf("Init pins\n");
     //Setup pins
-    gpio_init(PAIR_PIN);
     gpio_init(FUNC_SEL_PIN);
-
-    gpio_set_dir(PAIR_PIN, GPIO_IN);
     gpio_set_dir(FUNC_SEL_PIN, GPIO_IN);
-
-    gpio_pull_up(PAIR_PIN);
     gpio_pull_up(FUNC_SEL_PIN);
 
     //Detect device configuration
@@ -196,6 +191,7 @@ int main()
        SetInterfaceType(CONSOLE_SIDE_INTERFACE);
     }
 
+    //Initialize the power manager to keep the board on
     powerManager.Init();
 
     //Start the controller communication on the second core
@@ -203,7 +199,9 @@ int main()
     //Wait for the core to start
     uint32_t g = multicore_fifo_pop_blocking();
 
+    //Start the wireless communication loop
     WirelessCommunicationCore();
 
+    //Should never reach this
     return 0;
 }
