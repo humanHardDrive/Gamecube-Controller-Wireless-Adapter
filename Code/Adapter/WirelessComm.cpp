@@ -7,7 +7,7 @@ WirelessComm::WirelessComm()
 {
 }
 
-void WirelessComm::Init()
+bool WirelessComm::Init()
 {
     gpio_init(RX_ACTIVITY_PIN);
     gpio_init(TX_ACTIVITY_PIN);
@@ -27,7 +27,10 @@ void WirelessComm::Init()
     //Start the radio
     //TODO: Check to see if it's started
     if(!m_Radio.begin(&m_SPIBus, NRF_CE_PIN, NRF_CS_PIN))
+    {
         printf("Failed to connect to radio\n");
+        return false;
+    }
 
     if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
     {
@@ -48,6 +51,8 @@ void WirelessComm::Init()
     m_Radio.csDelay = 1;
 
     m_Radio.startListening();
+
+    return true;
 }
 
 void WirelessComm::Background()
@@ -94,6 +99,14 @@ uint8_t WirelessComm::Read(void *pBuf, uint8_t len)
     }
 
     return 0;
+}
+
+void WirelessComm::Sleep()
+{
+}
+
+void WirelessComm::Wake()
+{
 }
 
 void WirelessComm::PairingProcess()

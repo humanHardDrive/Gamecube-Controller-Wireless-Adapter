@@ -72,9 +72,10 @@ void ControllerCommunicationCore()
         if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
         {
             if(!controllerComm.AnyControllerConnected() &&
-                (absolute_time_diff_us(lastControllerConnectedTime, get_absolute_time()) > 100000))
+                (absolute_time_diff_us(lastControllerConnectedTime, get_absolute_time()) > 5000))
             {
-                powerManager.Sleep();
+                powerManager.Sleep(500);
+                lastControllerConnectedTime = get_absolute_time();
             }
             else if(controllerComm.AnyControllerConnected())
             {
@@ -193,6 +194,9 @@ int main()
 
     //Initialize the power manager to keep the board on
     powerManager.Init();
+
+    powerManager.AddModuleToManage(&controllerComm);
+    powerManager.AddModuleToManage(&wirelessComm);
 
     //Start the controller communication on the second core
     multicore_launch_core1(ControllerCommunicationCore);

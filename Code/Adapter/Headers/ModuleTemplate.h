@@ -7,4 +7,5 @@ public:
     virtual void Background() = 0;
 
     virtual void Sleep() = 0;
+    virtual void Wake() = 0;
 };

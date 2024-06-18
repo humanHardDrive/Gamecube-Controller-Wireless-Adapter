@@ -1,6 +1,8 @@
 //Basic device function pins
 #define PAIR_PIN        0
 #define FUNC_SEL_PIN    15
+
+
 //Controller communciation pins
 #define CONTROLLER_DATA_BASE_PIN    1
 #define CONTROLLER_1_DATA_PIN       1
@@ -13,6 +15,10 @@
 #define CONTROLLER_2_CONNECTED_PIN      8
 #define CONTROLLER_3_CONNECTED_PIN      9
 #define CONTROLLER_4_CONNECTED_PIN      10
+
+//Power control pins
+#define POWER_CTRL_PIN        11
+#define POWER_ON_PIN          12
 
 //SPI0 pins
 #define SPI0_MOSI_PIN   19

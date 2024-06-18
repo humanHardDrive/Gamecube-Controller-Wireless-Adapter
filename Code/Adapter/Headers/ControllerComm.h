@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "hardware/pio.h"
+#include "pico/mutex.h"
 
 #include "ControllerDefs.h"
 #include "ModuleTemplate.h"
@@ -23,9 +24,10 @@ public:
     void GetConsoleData(ConsoleValues* pConsoleData);
     void SetConsoleData(ConsoleValues* pConsoleData);
 
-    unsigned char AnyControllerConnected();
+    bool AnyControllerConnected();
 
     void Sleep();
+    void Wake();
 
 private:
     enum class ControllerState
@@ -59,8 +61,11 @@ private:
     void Write(ControllerCommInfo* pController, uint32_t* pVal, uint8_t len);
     void Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8_t* pLen);
 
-    void ConsoleInterfaceBackground();
-    void ControllerInterfaceBackground();
+    void ConsoleInterfaceBackground(bool bStopComm);
+    void ControllerInterfaceBackground(bool bStopComm);
 
     ControllerCommInfo m_aControllerInfo[NUM_CONTROLLERS];
+    bool m_bSleepRequested, m_bCanSleep;
+
+    mutex_t m_BackgroundLock;
 };

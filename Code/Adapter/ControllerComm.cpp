@@ -12,7 +12,7 @@
 
 ControllerComm::ControllerComm()
 {
-    
+    auto_init_mutex(m_BackgroundLock);
 }
 
 void ControllerComm::SwitchModeTX(ControllerCommInfo* pController)
@@ -76,6 +76,8 @@ bool ControllerComm::Init()
         else
             SwitchModeRX(&m_aControllerInfo[i]); //Console side starts in RX to recieve data from the console
     }
+
+    m_bCanSleep = m_bSleepRequested = false;
 
     return true;
 }
@@ -169,15 +171,15 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
     }
 }
 
-void ControllerComm::ControllerInterfaceBackground()
+void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         //Keep track of how much time has elapsed since the last message
         uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].LastPollTime, get_absolute_time());
         
-        //Check if it's time to send a new message
-        if(!m_aControllerInfo[i].waitingForResponse)
+        //Check if it's time to send a new message and the device isn't going to sleep
+        if(!m_aControllerInfo[i].waitingForResponse && !bStopComm)
         {
             uint32_t cmd, nBits;
             cmd = nBits = 0;
@@ -293,7 +295,7 @@ void ControllerComm::ControllerInterfaceBackground()
     }
 }
 
-void ControllerComm::ConsoleInterfaceBackground()
+void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
@@ -373,18 +375,33 @@ void ControllerComm::ConsoleInterfaceBackground()
 
 void ControllerComm::Background()
 {
+    bool bCanSleep = true;
+
     if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
-        ControllerInterfaceBackground();
+        ControllerInterfaceBackground(m_bSleepRequested);
     else
-        ConsoleInterfaceBackground();
+        ConsoleInterfaceBackground(m_bSleepRequested);
 
     for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        if(m_aControllerInfo[i].info.isConnected)
-            gpio_put(m_aControllerInfo[i].connectPin, true);
+        if(m_bSleepRequested)
+        {
+            gpio_put(m_aControllerInfo[i].connectPin, false); //Turn off the output
+            if(m_aControllerInfo[i].waitingForResponse)
+                bCanSleep = false;
+        }
         else
-            gpio_put(m_aControllerInfo[i].connectPin, false);
+        {
+            if(m_aControllerInfo[i].info.isConnected)
+                gpio_put(m_aControllerInfo[i].connectPin, true);
+            else
+                gpio_put(m_aControllerInfo[i].connectPin, false);
+        }
     }
+
+    //Set the sleep flag
+    if(m_bSleepRequested && bCanSleep)
+        m_bCanSleep = true;
 }
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)
@@ -437,11 +454,24 @@ void ControllerComm::SetConsoleData(ConsoleValues* pConsoleData)
     }
 }
 
-unsigned char ControllerComm::AnyControllerConnected()
+bool ControllerComm::AnyControllerConnected()
 {
-    return 0;
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        if(m_aControllerInfo[i].info.isConnected)
+            return true;
+    }
+
+    return false;
 }
 
 void ControllerComm::Sleep()
 {
+    m_bSleepRequested = true;
+    while(!m_bCanSleep) { tight_loop_contents(); }
+}
+
+void ControllerComm::Wake()
+{
+    m_bSleepRequested = m_bCanSleep = false;
 }
