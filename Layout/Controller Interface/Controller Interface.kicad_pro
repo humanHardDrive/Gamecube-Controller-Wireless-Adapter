@@ -326,6 +326,18 @@
     [
       "debf4462-021e-4805-bcd2-6130c1f65c4c",
       ""
+    ],
+    [
+      "8b74bfbb-1df7-41c8-9da7-14534e77ff25",
+      "Controller Connectors"
+    ],
+    [
+      "0e5e425d-874a-4494-8f06-80e1d5ace878",
+      "Power"
+    ],
+    [
+      "b67b8a11-cf45-4531-a24a-54934a9624a8",
+      "Processor"
     ]
   ],
   "text_variables": {}
