@@ -8,6 +8,23 @@
   )
 
 
+  (sheet (at 80.645 92.71) (size 51.435 33.02) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 00d40970-3d04-492a-a76f-db39fb68e165)
+    (property "Sheetname" "Wireless" (at 80.645 91.9984 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "wireless.kicad_sch" (at 80.645 126.3146 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "Controller Interface"
+        (path "/debf4462-021e-4805-bcd2-6130c1f65c4c" (page "5"))
+      )
+    )
+  )
+
   (sheet (at 139.7 90.17) (size 48.26 35.56) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))

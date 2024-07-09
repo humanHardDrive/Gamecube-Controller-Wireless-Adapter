@@ -87,15 +87,14 @@ static void controllerRead(PIO pio, uint sm, uint32_t* pBuf, uint8_t* pLen)
 
     for(uint8_t i = 0; i < nWords; i++)
     {
+        if((i > 0) && (nWords > 1))
+            pBuf[i] >>= nOffset;
+
         if(i < (nWords - 1))
         {
             uint32_t addIn = pBuf[i + 1] & mask;
             addIn <<= (32 - nOffset);
             pBuf[i] |= addIn;
-        }
-        else
-        {
-            pBuf[i] >>= nOffset;
         }
     }
 }
@@ -112,8 +111,8 @@ void controllerSwitchModeRX(PIO pio, uint sm, uint offset)
 
 int main()
 {
-    uint64_t out = 0;
-    uint8_t nTestLen = 64;
+    uint32_t out[4] = {0};
+    uint8_t nTestLen = 80;
     uint consoleOffset = 0, controllerOffset = 0;
     absolute_time_t lastPollTime = get_absolute_time();
     stdio_init_all();
@@ -136,9 +135,28 @@ int main()
             pio_sm_clear_fifos(pio0, 0);
             pio_sm_clear_fifos(pio1, 0);
 
-            out <<= 1;
-            if(!(out & 0x02))
-                out |= 0x01;
+            out[0] <<= 1;
+            if(!out[0])
+            {
+                out[0] = 1;
+                out[1] <<= 1;
+                printf("HB\n");
+
+                if(!out[1])
+                {
+                    out[1] = 1;
+                    out[2] <<= 1;
+                    if(!out[2])
+                    {
+                        out[2] = 1;
+                        out[3] <<= 1;
+                        if(!out[3])
+                        {
+                            out[3] = 1;
+                        }
+                    }
+                }
+            }
 
             controllerWrite(pio0, 0, (uint32_t*)&out, nTestLen);
             lastPollTime = get_absolute_time();
@@ -168,9 +186,28 @@ int main()
                 }
                 else
                 {
-                    if(memcmp(&out, data, 2))
+                    uint8_t nWords = ((len - 1) / 32) + 1;
+                    uint8_t nBytes = ((len - 1) / 8) + 1;
+                    uint8_t nOffset = ((nWords * 32) - len);
+                    uint32_t mask = 0xFFFFFFFF << (32 - nOffset);
+                    mask = ~mask;
+
+                    uint32_t test[4] = {0};
+                    memcpy(test, out, sizeof(test));
+                    test[nWords - 1] &= mask;
+
+                    if(memcmp(test, data, nBytes))
                     {
-                        printf("Message data doesn't match.\n");
+                        printf("Message data doesn't match ");
+                        for(size_t i = 0; i < nWords; i++)
+                            printf("%u ", data[i]);
+                        
+                        printf("vs ");
+
+                        for(size_t i = 0; i < nWords; i++)
+                            printf("%u ", test[i]);
+                        
+                        printf("\n");
                     }
                 }
             }

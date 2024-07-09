@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ModuleTemplate.h"
+
 #include "RF24.h"
 
 #define MAX_PAYLOAD_SIZE    32
@@ -11,12 +13,12 @@ enum class PAIRING_STATE
     COMPLETED
 };
 
-class WirelessComm
+class WirelessComm : public ModuleTemplate
 {
 public:
     WirelessComm();
 
-    void Init();
+    bool Init();
     void Background();
 
     void Pair();
@@ -25,6 +27,9 @@ public:
 
     bool Write(void* pBuf, uint8_t len);
     uint8_t Read(void* pBuf, uint8_t len);
+
+    void Sleep();
+    void Wake();
 
 private:   
     void PairingProcess();
