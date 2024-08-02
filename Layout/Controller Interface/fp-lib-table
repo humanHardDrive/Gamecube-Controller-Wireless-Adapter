@@ -2,4 +2,5 @@
   (version 7)
   (lib (name "MCU_RaspberryPi_and_Boards")(type "KiCad")(uri "${KIPRJMOD}/../RP KiCAD/MCU_RaspberryPi_and_Boards.pretty")(options "")(descr ""))
   (lib (name "GameCube Controllers")(type "KiCad")(uri "${KIPRJMOD}/GameCube Controllers.pretty")(options "")(descr ""))
+  (lib (name "GTS24")(type "KiCad")(uri "${KIPRJMOD}/GTS24.pretty")(options "")(descr ""))
 )
