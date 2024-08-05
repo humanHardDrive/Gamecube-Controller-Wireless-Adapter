@@ -1,5 +1,82 @@
 (kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid de034696-2c40-409b-8cc3-cb3d87a6597e)
+
   (paper "A4")
-  (lib_symbols)
-  (symbol_instances)
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 139.446 89.027) (size 63.627 37.973) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 6876ccd3-3b75-49ae-8faf-dae61b863401)
+    (property "Sheetname" "Wireless" (at 139.446 88.3154 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "Wireless.kicad_sch" (at 139.446 127.5846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "Console Interface"
+        (path "/de034696-2c40-409b-8cc3-cb3d87a6597e" (page "5"))
+      )
+    )
+  )
+
+  (sheet (at 63.5 38.1) (size 63.5 38.1) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 93090a73-cefe-4af1-b0ae-5634b687e1d5)
+    (property "Sheetname" "Processor" (at 63.5 37.3884 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "Processor.kicad_sch" (at 63.5 76.7846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "Console Interface"
+        (path "/de034696-2c40-409b-8cc3-cb3d87a6597e" (page "2"))
+      )
+    )
+  )
+
+  (sheet (at 63.627 88.9) (size 63.373 38.1) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid c04ab8ec-a72c-4029-b669-540b9f78c314)
+    (property "Sheetname" "Controller Connectors" (at 63.627 88.1884 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "Controllers.kicad_sch" (at 63.627 127.5846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "Console Interface"
+        (path "/de034696-2c40-409b-8cc3-cb3d87a6597e" (page "4"))
+      )
+    )
+  )
+
+  (sheet (at 139.7 38.1) (size 63.5 38.1) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid ca7134d4-84d4-4304-b23c-908ccefeb9f0)
+    (property "Sheetname" "Power" (at 139.7 37.3884 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "Power.kicad_sch" (at 139.7 76.7846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "Console Interface"
+        (path "/de034696-2c40-409b-8cc3-cb3d87a6597e" (page "3"))
+      )
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
 )
