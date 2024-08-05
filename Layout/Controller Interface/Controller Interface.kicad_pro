@@ -56,9 +56,7 @@
         }
       ],
       "drc_exclusions": [
-        "unconnected_items|100150000|53600000|6d8acd9b-a507-4c4c-8857-069c9287b411|4dbdd8a0-891b-4c5e-86b5-98bbc183b770",
-        "unconnected_items|126437500|58000000|351553b3-9342-4e11-b6e6-3d7760aa313f|8fd23207-5a99-4777-bad0-d23636046635",
-        "unconnected_items|126437500|58400000|a1c31c1f-be2d-4398-a998-4f82be58ffd8|5e675a4f-3280-4aef-80db-58e9263b6fe4"
+        "unconnected_items|100150000|53600000|6d8acd9b-a507-4c4c-8857-069c9287b411|4dbdd8a0-891b-4c5e-86b5-98bbc183b770"
       ],
       "meta": {
         "version": 2

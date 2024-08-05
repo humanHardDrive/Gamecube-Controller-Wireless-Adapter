@@ -6,3 +6,4 @@ Code/Controller Interface Test/build/
 Code/RF24/cmake/
 *.kicad_sch-bak
 *.lck
+/Layout/Controller Interface/output
