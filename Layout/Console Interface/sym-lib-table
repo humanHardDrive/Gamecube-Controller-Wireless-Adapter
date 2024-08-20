@@ -1,0 +1,6 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "GTS24")(type "KiCad")(uri "${KIPRJMOD}/GTS24.kicad_sym")(options "")(descr ""))
+  (lib (name "Controller Plug")(type "KiCad")(uri "${KIPRJMOD}/Controller Plug.kicad_sym")(options "")(descr ""))
+  (lib (name "GameCube Controllers")(type "KiCad")(uri "${KIPRJMOD}/GameCube Controllers.kicad_sym")(options "")(descr ""))
+)

@@ -981,8 +981,8 @@
     (property "Datasheet" "~" (at 139.065 80.01 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (pin "1" (uuid be809633-6a01-409b-9fce-242bb8ffc8bf))
-    (pin "2" (uuid 64240d0a-13c0-49fe-879e-b2fd6731b469))
+    (pin "1" (uuid ecfb00e5-53e6-426a-9782-6a9ddf168dca))
+    (pin "2" (uuid 53fc85f1-e54c-4957-97f2-382b15c63608))
     (instances
       (project "Console Interface"
         (path "/de034696-2c40-409b-8cc3-cb3d87a6597e/ca7134d4-84d4-4304-b23c-908ccefeb9f0"
