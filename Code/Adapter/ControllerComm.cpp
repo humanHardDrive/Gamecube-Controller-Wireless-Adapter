@@ -47,8 +47,8 @@ bool ControllerComm::Init()
         m_aControllerInfo[i].pio = pio0;
         m_aControllerInfo[i].sm = i;
         m_aControllerInfo[i].offset = offset;
-        m_aControllerInfo[i].commPin = CONTROLLER_DATA_BASE_PIN + i;
-        m_aControllerInfo[i].connectPin = CONTROLLER_CONNECTED_BASE_PIN + i;
+        m_aControllerInfo[i].commPin = GetDevicePinMap()->controllerData[i];
+        m_aControllerInfo[i].connectPin = GetDevicePinMap()->controllerStatus[i];
 
         //Initialize communication values
         m_aControllerInfo[i].info.isConnected = false;
@@ -62,7 +62,7 @@ bool ControllerComm::Init()
 
         gpio_set_dir(m_aControllerInfo[i].connectPin, GPIO_OUT);
 
-        gpio_put(m_aControllerInfo[i].connectPin, false);
+        gpio_put(m_aControllerInfo[i].connectPin, true);
 
         //Initialize communication with the communication PIO
         gcn_comm_program_init(m_aControllerInfo[i].pio, //PIO
@@ -78,6 +78,10 @@ bool ControllerComm::Init()
     }
 
     m_bCanSleep = m_bSleepRequested = false;
+    
+    m_bStartupDone = false;
+    m_StartupCount = 0;
+    m_StartupTime = m_StartupPhaseTime = get_absolute_time();
 
     return true;
 }
@@ -93,7 +97,7 @@ void ControllerComm::Write(ControllerCommInfo* pController, uint32_t* pVal, uint
     uint32_t mask = 0xFFFFFFFF << (32 - nOffset);
 
     pio_sm_put_blocking(pController->pio, pController->sm, len); //Put the number of bits onto the FIFO
-    //Shift ou the data
+    //Shift out the data
     for(int16_t i = nWords; i > 0; i--)
     {
         uint32_t val = pVal[i - 1];
@@ -169,6 +173,64 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
             pBuf[i] |= addIn;
         }
     }
+}
+
+void ControllerComm::StartupSequence()
+{
+    uint deltaStartupTime = absolute_time_diff_us(m_StartupTime, get_absolute_time());
+    uint deltaPhaseTime = absolute_time_diff_us(m_StartupPhaseTime, get_absolute_time());
+    //Check if the startup is done
+    if(m_StartupCount >= 20)
+    {
+        //Turn off all the LEDs
+        for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+            gpio_put(m_aControllerInfo[i].connectPin, false);
+
+        printf("ControllerComm startup done\n");
+        m_bStartupDone = true;
+        return;
+    }
+    
+    //Otherwise go through the LED sequence
+    if(deltaPhaseTime > 100000)
+    {
+        gpio_put(m_aControllerInfo[m_StartupCount % NUM_CONTROLLERS].connectPin, false);
+        m_StartupPhaseTime = get_absolute_time();
+        m_StartupCount++;
+    }
+    else
+        gpio_put(m_aControllerInfo[m_StartupCount % NUM_CONTROLLERS].connectPin, true);
+}
+
+void ControllerComm::MainBackground()
+{
+    bool bCanSleep = true;
+
+    if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
+        ControllerInterfaceBackground(m_bSleepRequested);
+    else
+        ConsoleInterfaceBackground(m_bSleepRequested);
+
+    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    {
+        if(m_bSleepRequested)
+        {
+            gpio_put(m_aControllerInfo[i].connectPin, false); //Turn off the output
+            if(m_aControllerInfo[i].waitingForResponse)
+                bCanSleep = false;
+        }
+        else
+        {
+            if(m_aControllerInfo[i].info.isConnected)
+                gpio_put(m_aControllerInfo[i].connectPin, true);
+            else
+                gpio_put(m_aControllerInfo[i].connectPin, false);
+        }
+    }
+
+    //Set the sleep flag
+    if(m_bSleepRequested && bCanSleep)
+        m_bCanSleep = true;
 }
 
 void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
@@ -375,33 +437,10 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
 
 void ControllerComm::Background()
 {
-    bool bCanSleep = true;
-
-    if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
-        ControllerInterfaceBackground(m_bSleepRequested);
+    if(m_bStartupDone)
+        MainBackground();
     else
-        ConsoleInterfaceBackground(m_bSleepRequested);
-
-    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
-    {
-        if(m_bSleepRequested)
-        {
-            gpio_put(m_aControllerInfo[i].connectPin, false); //Turn off the output
-            if(m_aControllerInfo[i].waitingForResponse)
-                bCanSleep = false;
-        }
-        else
-        {
-            if(m_aControllerInfo[i].info.isConnected)
-                gpio_put(m_aControllerInfo[i].connectPin, true);
-            else
-                gpio_put(m_aControllerInfo[i].connectPin, false);
-        }
-    }
-
-    //Set the sleep flag
-    if(m_bSleepRequested && bCanSleep)
-        m_bCanSleep = true;
+        StartupSequence();
 }
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)

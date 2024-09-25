@@ -3,34 +3,39 @@
 
 #include "Utils.h"
 
-WirelessComm::WirelessComm()
+WirelessComm::WirelessComm() :
+    m_bInit(false)
 {
 }
 
 bool WirelessComm::Init()
 {
-    gpio_init(RX_ACTIVITY_PIN);
-    gpio_init(TX_ACTIVITY_PIN);
-    gpio_init(NRF_CE_PIN);
+    gpio_init(GetDevicePinMap()->wirelessRX);
+    gpio_init(GetDevicePinMap()->wirelessTX);
+    gpio_init(GetDevicePinMap()->wirelessCE);
+    gpio_init(GetDevicePinMap()->wirelessCS);
 
-    gpio_set_dir(RX_ACTIVITY_PIN, GPIO_OUT);
-    gpio_set_dir(TX_ACTIVITY_PIN, GPIO_OUT);
-    gpio_set_dir(NRF_CE_PIN, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->wirelessRX, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->wirelessTX, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->wirelessCE, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->wirelessCS, GPIO_OUT);
 
-    gpio_put(RX_ACTIVITY_PIN, false);
-    gpio_put(TX_ACTIVITY_PIN, false);
-    gpio_put(NRF_CE_PIN, false);
+    gpio_put(GetDevicePinMap()->wirelessRX, false);
+    gpio_put(GetDevicePinMap()->wirelessTX, false);
+    gpio_put(GetDevicePinMap()->wirelessCE, false);
 
     //Handles all the SPI setup
-    m_SPIBus.begin(spi0, SPI0_CLK_PIN, SPI0_MOSI_PIN, SPI0_MISO_PIN);
+    m_SPIBus.begin(GetDevicePinMap()->wirelessSPI, GetDevicePinMap()->wirelessSCK, GetDevicePinMap()->wirelessMOSI, GetDevicePinMap()->wirelessMISO);
 
     //Start the radio
     //TODO: Check to see if it's started
-    if(!m_Radio.begin(&m_SPIBus, NRF_CE_PIN, NRF_CS_PIN))
+    if(!m_Radio.begin(&m_SPIBus, GetDevicePinMap()->wirelessCE, GetDevicePinMap()->wirelessCS))
     {
         printf("Failed to connect to radio\n");
         return false;
     }
+
+    m_bInit = true;
 
     if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
     {
@@ -46,6 +51,7 @@ bool WirelessComm::Init()
     m_Radio.setCRCLength(rf24_crclength_e::RF24_CRC_16);
     m_Radio.setAutoAck(false);
     m_Radio.setDataRate(rf24_datarate_e::RF24_2MBPS);
+    m_Radio.setPALevel(RF24_PA_MIN, true);
 
     m_Radio.txDelay = 0; //Autoack is disabled
     m_Radio.csDelay = 1;
@@ -71,7 +77,10 @@ bool WirelessComm::IsPaired()
 
 bool WirelessComm::Write(void *pBuf, uint8_t len)
 {
-    gpio_put(TX_ACTIVITY_PIN, true);
+    if(!m_bInit)
+        return false;
+
+    gpio_put(GetDevicePinMap()->wirelessTX, true);
 
     m_Radio.stopListening();
 
@@ -83,18 +92,21 @@ bool WirelessComm::Write(void *pBuf, uint8_t len)
 
     m_Radio.startListening();
 
-    gpio_put(TX_ACTIVITY_PIN, false);
+    gpio_put(GetDevicePinMap()->wirelessTX, false);
 }
 
 uint8_t WirelessComm::Read(void *pBuf, uint8_t len)
 {
+    if(!m_bInit)
+        return 0;
+
     if(m_Radio.available())
     {
-        gpio_put(RX_ACTIVITY_PIN, true);
+        gpio_put(GetDevicePinMap()->wirelessRX, true);
 
         m_Radio.read(pBuf, len);
 
-        gpio_put(RX_ACTIVITY_PIN, false);
+        gpio_put(GetDevicePinMap()->wirelessRX, false);
         return len;
     }
 

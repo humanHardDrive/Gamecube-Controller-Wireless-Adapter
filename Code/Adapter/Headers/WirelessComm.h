@@ -38,4 +38,5 @@ private:
 
     RF24 m_Radio;
     SPI m_SPIBus;
+    bool m_bInit;
 };

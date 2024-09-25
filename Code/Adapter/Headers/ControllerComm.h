@@ -55,6 +55,9 @@ private:
 
     }ControllerCommInfo;
 
+    void StartupSequence();
+    void MainBackground();
+
     void SwitchModeTX(ControllerCommInfo* pController);
     void SwitchModeRX(ControllerCommInfo* pController);
 
@@ -66,6 +69,10 @@ private:
 
     ControllerCommInfo m_aControllerInfo[NUM_CONTROLLERS];
     bool m_bSleepRequested, m_bCanSleep;
+
+    bool m_bStartupDone;
+    absolute_time_t m_StartupTime, m_StartupPhaseTime;
+    uint m_StartupCount;
 
     mutex_t m_BackgroundLock;
 };

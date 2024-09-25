@@ -74,7 +74,6 @@ void ControllerCommunicationCore()
             if(!controllerComm.AnyControllerConnected() &&
                 (absolute_time_diff_us(lastControllerConnectedTime, get_absolute_time()) > 5000))
             {
-                powerManager.Sleep(500);
                 lastControllerConnectedTime = get_absolute_time();
             }
             else if(controllerComm.AnyControllerConnected())
@@ -163,13 +162,13 @@ int main()
     }
 
     printf("Init pins\n");
-    //Setup pins
-    gpio_init(FUNC_SEL_PIN);
-    gpio_set_dir(FUNC_SEL_PIN, GPIO_IN);
-    gpio_pull_up(FUNC_SEL_PIN);
+    //Setup pins   
+    gpio_init(GetDevicePinMap()->functionSelect);
+    gpio_set_dir(GetDevicePinMap()->functionSelect, GPIO_IN);
+    gpio_pull_up(GetDevicePinMap()->functionSelect);
 
     //Detect device configuration
-    if(!gpio_get(FUNC_SEL_PIN))
+    if(!gpio_get(GetDevicePinMap()->functionSelect))
     {
         /*
         This is the controller side interface

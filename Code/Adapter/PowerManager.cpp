@@ -2,7 +2,7 @@
 
 #include "pico/stdlib.h"
 
-#include "PinDefs.h"
+#include "Utils.h"
 
 PowerManager::PowerManager()
 {
@@ -10,14 +10,16 @@ PowerManager::PowerManager()
 
 bool PowerManager::Init()
 {
-    gpio_init(POWER_CTRL_PIN);
-    gpio_init(POWER_ON_PIN);
+    gpio_init(GetDevicePinMap()->powerOn);
+    gpio_init(GetDevicePinMap()->powerLED);
+    gpio_init(GetDevicePinMap()->vbusDetect);
 
-    gpio_set_dir(POWER_CTRL_PIN, GPIO_OUT);
-    gpio_set_dir(POWER_ON_PIN, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->powerOn, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->powerLED, GPIO_OUT);
+    gpio_set_dir(GetDevicePinMap()->vbusDetect, GPIO_IN);
 
-    gpio_put(POWER_CTRL_PIN, false);
-    gpio_put(POWER_ON_PIN, true);
+    gpio_put(GetDevicePinMap()->powerOn, true);
+    gpio_put(GetDevicePinMap()->powerLED, true);
 
     return true;
 }
