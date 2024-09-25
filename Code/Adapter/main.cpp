@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <tusb.h>
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
@@ -156,10 +155,6 @@ void WirelessCommunicationCore()
 int main()
 {
     stdio_init_all();
-
-    while (!tud_cdc_connected()) {
-        sleep_ms(10);
-    }
 
     printf("Init pins\n");
     //Setup pins   

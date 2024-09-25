@@ -8,6 +8,8 @@ project(gcn-wireless-controller)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/Headers)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../RF24)
 
+add_definitions(-DPICO_DEFAULT_UART=1 -DPICO_DEFAULT_UART_TX_PIN=20 -DPICO_DEFAULT_UART_RX_PIN=21)
+
 pico_sdk_init()
 
 add_executable(gcn-wireless-controller)
@@ -19,7 +21,7 @@ target_sources(gcn-wireless-controller PRIVATE main.cpp Utils.cpp PowerManager.c
 target_link_libraries(gcn-wireless-controller 
 						PRIVATE pico_stdlib pico_mem_ops pico_multicore hardware_pio hardware_spi RF24)
 
-pico_enable_stdio_usb(gcn-wireless-controller  1)
-pico_enable_stdio_uart(gcn-wireless-controller  0) 
+pico_enable_stdio_usb(gcn-wireless-controller  0)
+pico_enable_stdio_uart(gcn-wireless-controller  1) 
 
 pico_add_extra_outputs(gcn-wireless-controller)
