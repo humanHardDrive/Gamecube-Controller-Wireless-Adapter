@@ -466,6 +466,10 @@
       {
         "netclass": "Power",
         "pattern": "VBUS"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "+3.3V"
       }
     ]
   },
