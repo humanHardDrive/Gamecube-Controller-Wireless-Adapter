@@ -86,6 +86,7 @@ void ControllerCommunicationCore()
 void WirelessCommunicationCore()
 {
     bool bDataReceived = false;
+    uint8_t nMissedMsgs = 0;
     absolute_time_t lastMsgTXTime = get_absolute_time();
     absolute_time_t lastMsgRXTime = get_absolute_time();
 
@@ -124,6 +125,17 @@ void WirelessCommunicationCore()
                     {
                         //Copy over the controller data from the controller side interface
                         memcpy(controllerBuffer, rxBuf, MAX_PAYLOAD_SIZE);
+                        nMissedMsgs = 0;
+                    }
+                    else
+                    {
+                        if(nMissedMsgs < 3)
+                            nMissedMsgs++;
+
+                        if(nMissedMsgs >= 3)
+                        {
+                            memset(controllerBuffer, 0, sizeof(controllerBuffer));
+                        }
                     }
 
                     //Write console side controller data

@@ -23,29 +23,29 @@ static const DevicePinMap ControllerInterfacePinMap =
 
     .powerOn = 26,
     .powerLED = 3,
-    .vbusDetect = 6,
+    .vbusDetect = 5,
 };
 
 static const DevicePinMap ConsoleInterfacePinMap = 
 {
     .functionSelect = 25,
 
-    .controllerData = {1, 28, 10, 19},
-    .controllerStatus = {0, 29, 11, 18},
+    .controllerData = {29, 28, 27, 26},
+    .controllerStatus = {21, 20, 19, 18},
 
     .wirelessSPI = spi1,
-    .wirelessMOSI = 15,
-    .wirelessMISO = 12,
+    .wirelessMOSI = 11,
+    .wirelessMISO = 8,
     .wirelessSCK = 14,
     .wirelessCS = 13,
-    .wirelessCE = 16,
-    .wirelessPair = 2,
-    .wirelessTX = 7,
-    .wirelessRX = 8,    
+    .wirelessCE = 12,
+    .wirelessPair = 15,
+    .wirelessTX = 17,
+    .wirelessRX = 16,    
 
-    .powerOn = 26,
-    .powerLED = 3,
-    .vbusDetect = 5,
+    .powerOn = 255,
+    .powerLED = 255,
+    .vbusDetect = 255,
 };
 
 //Default the device pin map to the unknown interface

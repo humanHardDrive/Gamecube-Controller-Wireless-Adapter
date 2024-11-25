@@ -2,7 +2,8 @@
     "files.associations": {
         "*.pio": "plaintext",
         "stdlib.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "board.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

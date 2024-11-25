@@ -93,6 +93,8 @@ bool WirelessComm::Write(void *pBuf, uint8_t len)
     m_Radio.startListening();
 
     gpio_put(GetDevicePinMap()->wirelessTX, false);
+
+    return true;
 }
 
 uint8_t WirelessComm::Read(void *pBuf, uint8_t len)
