@@ -8,3 +8,4 @@ Code/RF24/cmake/
 *.lck
 /Layout/Controller Interface/output
 /Layout/Console Interface/output
+/Code/Loopback Test/build
