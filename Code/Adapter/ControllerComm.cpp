@@ -13,6 +13,7 @@
 ControllerComm::ControllerComm()
 {
     auto_init_mutex(m_BackgroundLock);
+    m_nStaleCount = 0;
 }
 
 void ControllerComm::SwitchModeTX(ControllerCommInfo* pController)
@@ -26,7 +27,6 @@ void ControllerComm::SwitchModeRX(ControllerCommInfo* pController)
 }
 
 /*
-
 */
 bool ControllerComm::Init()
 {
@@ -52,6 +52,7 @@ bool ControllerComm::Init()
 
         //Initialize communication values
         m_aControllerInfo[i].info.isConnected = false;
+        m_aControllerInfo[i].info.bIsStale = true;
         m_aControllerInfo[i].state = ControllerState::NOT_CONNECTED;
         m_aControllerInfo[i].LastPollTime = get_absolute_time();
         m_aControllerInfo[i].waitingForResponse = false;
@@ -77,6 +78,7 @@ bool ControllerComm::Init()
             SwitchModeRX(&m_aControllerInfo[i]); //Console side starts in RX to recieve data from the console
     }
 
+    m_nStaleCount++;
     m_bCanSleep = m_bSleepRequested = false;
     
     m_bStartupDone = false;
@@ -357,13 +359,15 @@ void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
     }
 }
 
+bool ControllerComm::IsControllerInfoStale()
+{
+    return (m_nStaleCount == NUM_CONTROLLERS);
+}
+
 void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
 {
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
-        uint deltaTime = absolute_time_diff_us(m_aControllerInfo[i].LastPollTime, get_absolute_time());
-        m_aControllerInfo[i].LastPollTime = get_absolute_time();
-
         if(pio_interrupt_get(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
         {
             //Read the data to clear the buffer
@@ -373,6 +377,9 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
             
             pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm);
             Read(&m_aControllerInfo[i], data, &nLen);
+
+            if(m_nStaleCount < NUM_CONTROLLERS)
+                m_nStaleCount++;
 
             //Only do something with it if the controller is connected
             if(m_aControllerInfo[i].info.isConnected)
@@ -415,10 +422,9 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
                     case POLL_MSG.first:
                     if(nLen == POLL_MSG.second)
                     {
-                        uint32_t buf[2] = {0};
-                        memcpy(buf, &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
+                        uint64_t val = m_aControllerInfo[i].info.controllerValues.raw;
 
-                        Write(&m_aControllerInfo[i], buf, POLL_RSP.second);
+                        Write(&m_aControllerInfo[i], (uint32_t*)&val, POLL_RSP.second);
                         m_aControllerInfo[i].info.consoleValues.doRumble = bRumble;
                         bKnown = true;
                     }
@@ -426,28 +432,36 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
                 }
 
                 if(!bKnown)
-                    printf("Unkown CMD 0x%x Len %d %u\n", data[0], nLen, deltaTime);
+                {
+                    printf("Unkown CMD 0x%x Len %d\n", data[0], nLen);
+                    //Need to put it back to receive if it's not going to transmit
+                    SwitchModeRX(&m_aControllerInfo[i]);
+                }
+                else
+                    m_aControllerInfo[i].info.bIsStale = true;
             }
-            
-            if(!bKnown)
-                Write(&m_aControllerInfo[i], (uint32_t*)&PROBE_MSG.first, PROBE_MSG.second);
+            else
+            {
+                //Switch back to receive if the controller does become connected
+                SwitchModeRX(&m_aControllerInfo[i]);
+            }
         }
     }
 }
 
 void ControllerComm::Background()
 {
-    if(m_bStartupDone)
-        MainBackground();
-    else
-        StartupSequence();
+    MainBackground();
 }
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)
 {
+    m_nStaleCount = 0;
+
     for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         m_aControllerInfo[i].info.controllerValues = pControllerData[i];
+        m_aControllerInfo[i].info.bIsStale = false;
 
         if(m_aControllerInfo[i].info.controllerValues.pad)
         {

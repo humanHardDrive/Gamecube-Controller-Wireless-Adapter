@@ -3,6 +3,7 @@
 
 .define public T1 4     ;Time the output is kept low for a 1. Time output is kept high for a 0
 .define public T2 12    ;Time the output is kept low for a 0. Time output is kept high for a 1
+.define public T3 6
 ;What matters is that T2 is 3 times as long as T1
 
 ;State machine starts in the transmit state
@@ -50,7 +51,7 @@ rx_data:
     wait 1 pin 0                side 0      ;Wait for the pin to go back high
 
 idle_check_start:
-    set y, T2                   side 0      ;Set a counter to a long count to find the idle
+    set y, T3                   side 0      ;Set a counter to a long count to find the idle
                                             ;Long enough to handle variety of bit timings
 idle_check_l1:
     jmp pin idle_check_l2       side 0      ;If the pin is still high, jump to decrement the count

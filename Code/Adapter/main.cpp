@@ -59,7 +59,7 @@ void ControllerCommunicationCore()
                 controllerComm.GetControllerData(controllerBuffer);
                 controllerComm.SetConsoleData(consoleBuffer);
             }
-            else //Console side interface
+            else if(controllerComm.IsControllerInfoStale()) //Console side interface
             {
                 controllerComm.GetConsoleData(consoleBuffer);
                 controllerComm.SetControllerData(controllerBuffer);
@@ -93,69 +93,88 @@ void WirelessCommunicationCore()
     printf("Wireless core started\n");
 
     //Init the wireless communication
-    wirelessComm.Init();
+    bool bInitSuccess = wirelessComm.Init();
 
     while(1)
     {
         wirelessComm.Background();
 
-        //Ping-pong the ownership of the controller data between controller and wireless
-        if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
+        if(/* bInitSuccess */false)
         {
-            uint8_t rxBuf[MAX_PAYLOAD_SIZE];
-            uint8_t nBytesRead = 0;
-
-            if(nBytesRead = wirelessComm.Read(rxBuf, MAX_PAYLOAD_SIZE))
+            //Ping-pong the ownership of the controller data between controller and wireless
+            if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
             {
-                bDataReceived = true;
-                lastMsgRXTime = get_absolute_time();
-            }
+                uint8_t rxBuf[MAX_PAYLOAD_SIZE];
+                uint8_t nBytesRead = 0;
 
-            if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
-            {
-                uint deltaTime = absolute_time_diff_us(lastMsgTXTime, get_absolute_time());
-                
-                //Either a response has been recieved from the controller side interface
-                //Or more than 1 millisecond has elapsed
-                if(deltaTime > 1000)
+                if(nBytesRead = wirelessComm.Read(rxBuf, MAX_PAYLOAD_SIZE))
                 {
-                    lastMsgTXTime = get_absolute_time();
+                    bDataReceived = true;
+                    lastMsgRXTime = get_absolute_time();
+                }
 
+                if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
+                {
+                    uint deltaTime = absolute_time_diff_us(lastMsgTXTime, get_absolute_time());
+                    
+                    //Either a response has been recieved from the controller side interface
+                    //Or more than 1 millisecond has elapsed
+                    if(deltaTime > 1000)
+                    {
+                        lastMsgTXTime = get_absolute_time();
+
+                        if(bDataReceived)
+                        {
+                            //Copy over the controller data from the controller side interface
+                            memcpy(controllerBuffer, rxBuf, MAX_PAYLOAD_SIZE);
+                            nMissedMsgs = 0;
+                        }
+                        else
+                        {
+                            if(nMissedMsgs < 3)
+                                nMissedMsgs++;
+
+                            if(nMissedMsgs >= 3)
+                            {
+                                memset(controllerBuffer, 0, sizeof(controllerBuffer));
+                            }
+                        }
+
+                        //Write console side controller data
+                        wirelessComm.Write(consoleBuffer, sizeof(consoleBuffer));
+                        //Clear the received flag to wait to transmit again
+                        bDataReceived = false;
+                    }
+                }
+                else //Controller side interface
+                {
+                    //Check if there has been a message from the console side interface
                     if(bDataReceived)
                     {
                         //Copy over the controller data from the controller side interface
-                        memcpy(controllerBuffer, rxBuf, MAX_PAYLOAD_SIZE);
-                        nMissedMsgs = 0;
+                        memcpy(consoleBuffer, rxBuf, sizeof(consoleBuffer));
+                        //Write controller side controller data
+                        wirelessComm.Write(controllerBuffer, sizeof(controllerBuffer));
+                        //Clear the received flag to wait to transmit again
+                        bDataReceived = false;
                     }
-                    else
-                    {
-                        if(nMissedMsgs < 3)
-                            nMissedMsgs++;
-
-                        if(nMissedMsgs >= 3)
-                        {
-                            memset(controllerBuffer, 0, sizeof(controllerBuffer));
-                        }
-                    }
-
-                    //Write console side controller data
-                    wirelessComm.Write(consoleBuffer, sizeof(consoleBuffer));
-                    //Clear the received flag to wait to transmit again
-                    bDataReceived = false;
                 }
+
+                //Switch back to the controller comm owning data
+                nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }
-            else //Controller side interface
+        }
+        else
+        {
+            if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
             {
-                //Check if there has been a message from the console side interface
-                if(bDataReceived)
+                if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
                 {
-                    //Copy over the controller data from the controller side interface
-                    memcpy(consoleBuffer, rxBuf, sizeof(consoleBuffer));
-                    //Write controller side controller data
-                    wirelessComm.Write(controllerBuffer, sizeof(controllerBuffer));
-                    //Clear the received flag to wait to transmit again
-                    bDataReceived = false;
+                    memset(controllerBuffer, 0, sizeof(controllerBuffer));
+                    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+                        controllerBuffer[i].pad = 1;
                 }
+                nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }
 
             //Switch back to the controller comm owning data
@@ -168,11 +187,16 @@ int main()
 {
     stdio_init_all();
 
+    sleep_ms(1500);
+
     printf("Init pins\n");
     //Setup pins   
     gpio_init(GetDevicePinMap()->functionSelect);
     gpio_set_dir(GetDevicePinMap()->functionSelect, GPIO_IN);
     gpio_pull_up(GetDevicePinMap()->functionSelect);
+
+    //Sleep to let the pins setup
+    sleep_ms(150);
 
     //Detect device configuration
     if(!gpio_get(GetDevicePinMap()->functionSelect))

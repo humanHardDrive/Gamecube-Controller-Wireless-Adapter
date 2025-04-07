@@ -9,3 +9,9 @@ Code/RF24/cmake/
 /Layout/Controller Interface/output
 /Layout/Console Interface/output
 /Code/Loopback Test/build
+/Code/Adapter/.vscode
+/Code/Adapter/_deps
+/Code/Adapter/CMakeFiles
+/Code/Adapter/pico-sdk
+/Code/Adapter/picotool
+/Code/Adapter/generated

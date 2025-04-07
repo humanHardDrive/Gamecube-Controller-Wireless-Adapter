@@ -8,7 +8,11 @@ project(gcn-wireless-controller)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/Headers)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../RF24)
 
+#add_compile_options(-Og)
+
 pico_sdk_init()
+
+add_definitions(-DSYS_CLK_MHZ=200)
 
 add_executable(gcn-wireless-controller)
 

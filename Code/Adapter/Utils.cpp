@@ -30,7 +30,7 @@ static const DevicePinMap ConsoleInterfacePinMap =
 {
     .functionSelect = 25,
 
-    .controllerData = {29, 28, 27, 26},
+    .controllerData = {22/*29*/, 28, 27, 26},
     .controllerStatus = {21, 20, 19, 18},
 
     .wirelessSPI = spi1,

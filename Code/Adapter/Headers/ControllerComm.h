@@ -26,6 +26,8 @@ public:
 
     bool AnyControllerConnected();
 
+    bool IsControllerInfoStale();
+
     void Sleep();
     void Wake();
 
@@ -73,6 +75,7 @@ private:
     bool m_bStartupDone;
     absolute_time_t m_StartupTime, m_StartupPhaseTime;
     uint m_StartupCount;
+    uint m_nStaleCount;
 
     mutex_t m_BackgroundLock;
 };
