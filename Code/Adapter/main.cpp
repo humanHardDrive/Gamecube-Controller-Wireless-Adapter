@@ -172,7 +172,7 @@ void WirelessCommunicationCore()
                 {
                     memset(controllerBuffer, 0, sizeof(controllerBuffer));
                     for(size_t i = 0; i < NUM_CONTROLLERS; i++)
-                        controllerBuffer[i].pad = 1;
+                        controllerBuffer[i].pad2 = 1;
                 }
                 nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }

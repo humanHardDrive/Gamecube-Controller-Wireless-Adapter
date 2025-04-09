@@ -81,8 +81,8 @@ static inline void gcn_comm_program_init(PIO pio, uint sm, uint offset, uint pin
     //And is used to jump the state machine
     sm_config_set_jmp_pin(&c, pin);
 
-    sm_config_set_in_shift(&c, false, true, 0); //shift in left (MSB first), no auto-push, 0 auto-push threshold
-    sm_config_set_out_shift(&c, false, true, 0); //shift out left (MSB first), no auto-pull, 0 auto-pull threshold
+    sm_config_set_in_shift(&c, true, true, 0); //shift in left (MSB first), no auto-push, 0 auto-push threshold
+    sm_config_set_out_shift(&c, true, true, 0); //shift out left (MSB first), no auto-pull, 0 auto-pull threshold
     //The auto-pull threshold is modified by l_ControllerCommWrite in ControllerComm.c
 
     int cycles_per_bit = gcn_comm_T1 + gcn_comm_T2; //Set the clock so that there are 16 samples per bit

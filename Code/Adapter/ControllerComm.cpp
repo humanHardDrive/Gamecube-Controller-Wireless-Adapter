@@ -100,23 +100,8 @@ void ControllerComm::Write(ControllerCommInfo* pController, uint32_t* pVal, uint
 
     pio_sm_put_blocking(pController->pio, pController->sm, len); //Put the number of bits onto the FIFO
     //Shift out the data
-    for(int16_t i = nWords; i > 0; i--)
-    {
-        uint32_t val = pVal[i - 1];
-        val <<= nOffset; //Left shift to be at the end of the OSR
-
-        //Check if data from the previous word needs to be appended onto the one being sent out
-        //Only matters for every word other than the least significant
-        if(i > 1)
-        {
-            uint32_t addIn = pVal[i - 2] & mask; //Mask off the needed bits
-            addIn >>= (32 - nOffset); //Shift it appropriately to align with the current word
-            val |= addIn; //Add it in
-        }
-
-        //Send out the constructed word to the FIFO
-        pio_sm_put_blocking(pController->pio, pController->sm, val);
-    }
+    for(int16_t i = 0; i < nWords; i++)
+        pio_sm_put_blocking(pController->pio, pController->sm, pVal[i]);
 }
 
 /*Read data from the controller through the PIO
@@ -128,7 +113,6 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
     uint8_t index = 0;
     uint8_t nWords;
     uint8_t nOffset;
-    uint32_t mask;
 
     //Get the data from the PIO
     while(!pio_sm_is_rx_fifo_empty(pController->pio, pController->sm))
@@ -140,41 +124,18 @@ void ControllerComm::Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8
             pBuf[index++] = v; //All other words are the actual data
     }
     
-    //Calculate the number of words the data would take
-    nWords = (((*pLen) - 1) / 32) + 1;
-
-    //Remove the idle bit
-    pBuf[nWords - 1] >>= 1;
+    //Remove the stop bit
+    pBuf[index - 1] <<= 1;
     //Decrement the length
     (*pLen)--;
 
-    //Recalculate the number of words without the stop bit
+    //Calculate the number of words the data would take
     nWords = (((*pLen) - 1) / 32) + 1;
 
-    //Swap endianess
-    for(uint8_t i = 0; i < (nWords / 2); i++)
-    {
-        uint32_t swap = pBuf[i];
-        pBuf[i] = pBuf[nWords - 1 - i];
-        pBuf[nWords - 1 - i] = swap;
-    }
-
-    //This is essentially the inverse of the write operation
+    //Calculate the offset to shift the last word by
     nOffset = ((nWords * 32) - *pLen);
-    mask = 0xFFFFFFFF >> (32 - nOffset);
-
-    for(uint8_t i = 0; i < nWords; i++)
-    {
-        if((i > 0) && (nWords > 1))
-            pBuf[i] >>= nOffset;
-
-        if(i < (nWords - 1))
-        {
-            uint32_t addIn = pBuf[i + 1] & mask;
-            addIn <<= (32 - nOffset);
-            pBuf[i] |= addIn;
-        }
-    }
+    if(nOffset)
+        pBuf[index - 1] >>= nOffset;
 }
 
 void ControllerComm::StartupSequence()
@@ -213,7 +174,7 @@ void ControllerComm::MainBackground()
     else
         ConsoleInterfaceBackground(m_bSleepRequested);
 
-    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
+    /*for(size_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         if(m_bSleepRequested)
         {
@@ -232,7 +193,7 @@ void ControllerComm::MainBackground()
 
     //Set the sleep flag
     if(m_bSleepRequested && bCanSleep)
-        m_bCanSleep = true;
+        m_bCanSleep = true;*/
 }
 
 void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
@@ -389,13 +350,15 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
 
                 switch(data[0])
                 {
-                    case PROBE_RECAL_MSG.first:
-                    bRecal = true;
-                    case PROBE_MSG.first:
-                    if(nLen == PROBE_MSG.second)
+                    case POLL_RUMBLE_MSG.first:
+                    bRumble = true;
+                    case POLL_MSG.first:
+                    if(nLen == POLL_MSG.second)
                     {
-                        m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
-                        Write(&m_aControllerInfo[i], (uint32_t*)&PROBE_RSP.first, PROBE_RSP.second);
+                        uint64_t val = m_aControllerInfo[i].info.controllerValues.raw;
+
+                        Write(&m_aControllerInfo[i], (uint32_t*)&val, POLL_RSP.second);
+                        m_aControllerInfo[i].info.consoleValues.doRumble = bRumble;
                         bKnown = true;
                     }
                     break;
@@ -407,7 +370,7 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
                     {
                         uint8_t buf[12] = {0}; //12 to align it to 32-bit
                         //Copy in the controller data with the 2 null bytes
-                        memcpy(&buf[2], &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
+                        memcpy(&buf[0], &m_aControllerInfo[i].info.controllerValues, sizeof(ControllerValues));
 
                         //Set the recal flag if neccessary
                         m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
@@ -417,15 +380,13 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
                     }
                     break;
 
-                    case POLL_RUMBLE_MSG.first:
-                    bRumble = true;
-                    case POLL_MSG.first:
-                    if(nLen == POLL_MSG.second)
+                    case PROBE_RECAL_MSG.first:
+                    bRecal = true;
+                    case PROBE_MSG.first:
+                    if(nLen == PROBE_MSG.second)
                     {
-                        uint64_t val = m_aControllerInfo[i].info.controllerValues.raw;
-
-                        Write(&m_aControllerInfo[i], (uint32_t*)&val, POLL_RSP.second);
-                        m_aControllerInfo[i].info.consoleValues.doRumble = bRumble;
+                        m_aControllerInfo[i].info.consoleValues.doRecal = bRecal;
+                        Write(&m_aControllerInfo[i], (uint32_t*)&PROBE_RSP.first, PROBE_RSP.second);
                         bKnown = true;
                     }
                     break;
@@ -446,6 +407,14 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
                 SwitchModeRX(&m_aControllerInfo[i]);
             }
         }
+        else
+        {
+            //Speed hack
+            //Operates under the assumption that all requests complete at the same time
+            //Thus if controller 1 doesn't have data, none of the others do
+            //Reduces the penalty incurred by having to restart the loop because controller 2, 3, or 4 detected the interrupt first
+            return;
+        }
     }
 }
 
@@ -463,7 +432,7 @@ void ControllerComm::SetControllerData(ControllerValues* pControllerData)
         m_aControllerInfo[i].info.controllerValues = pControllerData[i];
         m_aControllerInfo[i].info.bIsStale = false;
 
-        if(m_aControllerInfo[i].info.controllerValues.pad)
+        if(m_aControllerInfo[i].info.controllerValues.pad2)
         {
             if(!m_aControllerInfo[i].info.isConnected)
             {
