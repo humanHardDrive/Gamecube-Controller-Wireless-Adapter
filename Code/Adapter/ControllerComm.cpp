@@ -170,34 +170,18 @@ void ControllerComm::MainBackground()
     bool bCanSleep = true;
 
     if(GetInterfaceType() == CONTROLLER_SIDE_INTERFACE)
-        ControllerInterfaceBackground(m_bSleepRequested);
+        ControllerInterfaceBackground(m_bSleepRequested, &bCanSleep);
     else
-        ConsoleInterfaceBackground(m_bSleepRequested);
-
-    /*for(size_t i = 0; i < NUM_CONTROLLERS; i++)
-    {
-        if(m_bSleepRequested)
-        {
-            gpio_put(m_aControllerInfo[i].connectPin, false); //Turn off the output
-            if(m_aControllerInfo[i].waitingForResponse)
-                bCanSleep = false;
-        }
-        else
-        {
-            if(m_aControllerInfo[i].info.isConnected)
-                gpio_put(m_aControllerInfo[i].connectPin, true);
-            else
-                gpio_put(m_aControllerInfo[i].connectPin, false);
-        }
-    }
+        ConsoleInterfaceBackground(m_bSleepRequested, &bCanSleep);
 
     //Set the sleep flag
     if(m_bSleepRequested && bCanSleep)
-        m_bCanSleep = true;*/
+        m_bCanSleep = true;
 }
 
-void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
+void ControllerComm::ControllerInterfaceBackground(bool bStopComm, bool* bCanSleep)
 {
+    *bCanSleep = true;
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         //Keep track of how much time has elapsed since the last message
@@ -266,6 +250,7 @@ void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
         }
         else //Handle waiting for a response
         {
+            *bCanSleep = false;
             if(deltaTime < 1000) //1mS timeout
             {
                 //Check if the RX interrupt is set
@@ -300,6 +285,7 @@ void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
                     m_aControllerInfo[i].consecutiveTimeouts = 0; //Reset the consecutive timeouts
                     m_aControllerInfo[i].waitingForResponse = false; //Clear the flag waiting for response
                     pio_interrupt_clear(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm); //Clear the receive interrupt
+                    gpio_put(m_aControllerInfo[i].connectPin, true); //Turn on the appropriate LED
                 }
             }
             else
@@ -314,6 +300,7 @@ void ControllerComm::ControllerInterfaceBackground(bool bStopComm)
                     m_aControllerInfo[i].info.isConnected = false;
                     m_aControllerInfo[i].state = ControllerState::NOT_CONNECTED;
                     memset(&m_aControllerInfo[i].info.controllerValues, 0, sizeof(ControllerValues));
+                    gpio_put(m_aControllerInfo[i].connectPin, false);
                 }
             }
         }
@@ -325,8 +312,10 @@ bool ControllerComm::IsControllerInfoStale()
     return (m_nStaleCount == NUM_CONTROLLERS);
 }
 
-void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
+void ControllerComm::ConsoleInterfaceBackground(bool bStopComm, bool* bCanSleep)
 {
+    *bCanSleep = false;
+
     for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
     {
         if(pio_interrupt_get(m_aControllerInfo[i].pio, m_aControllerInfo[i].sm))
@@ -347,6 +336,7 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
             {
                 bool bRumble = false;
                 bool bRecal = false;
+                gpio_put(m_aControllerInfo[i].connectPin, true);
 
                 switch(data[0])
                 {
@@ -405,6 +395,7 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm)
             {
                 //Switch back to receive if the controller does become connected
                 SwitchModeRX(&m_aControllerInfo[i]);
+                gpio_put(m_aControllerInfo[i].connectPin, false);
             }
         }
         else

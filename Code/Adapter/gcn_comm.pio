@@ -3,7 +3,7 @@
 
 .define public T1 4     ;Time the output is kept low for a 1. Time output is kept high for a 0
 .define public T2 12    ;Time the output is kept low for a 0. Time output is kept high for a 1
-.define public T3 6
+.define public T3 5
 ;What matters is that T2 is 3 times as long as T1
 
 ;State machine starts in the transmit state

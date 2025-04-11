@@ -66,8 +66,8 @@ private:
     void Write(ControllerCommInfo* pController, uint32_t* pVal, uint8_t len);
     void Read(ControllerCommInfo* pController, uint32_t* pBuf, uint8_t* pLen);
 
-    void ConsoleInterfaceBackground(bool bStopComm);
-    void ControllerInterfaceBackground(bool bStopComm);
+    void ConsoleInterfaceBackground(bool bStopComm, bool* bCanSleep);
+    void ControllerInterfaceBackground(bool bStopComm, bool* bCanSleep);
 
     ControllerCommInfo m_aControllerInfo[NUM_CONTROLLERS];
     bool m_bSleepRequested, m_bCanSleep;
