@@ -15,3 +15,6 @@ Code/RF24/cmake/
 /Code/Adapter/pico-sdk
 /Code/Adapter/picotool
 /Code/Adapter/generated
+/Layout/Controller Interface LB/Controller Interface LB-backups
+Layout/Controller Interface/fp-info-cache
+Layout/Controller Interface/fp-info-cache
