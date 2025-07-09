@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>C:\Users\Sam\Documents\GitHub\Gamecube-Controller-Wireless-Adapter\Layout\Console Interface\Console Interface.kicad_sch</source>
-    <date>4/11/2025 7:25:56 PM</date>
+    <date>4/17/2025 8:18:46 PM</date>
     <tool>Eeschema 7.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -296,7 +296,7 @@
     </comp>
     <comp ref="D1">
       <value>LED</value>
-      <footprint>LED_SMD:LED_0805_2012Metric</footprint>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
       <libsource lib="Device" part="LED" description="Light emitting diode"/>
       <property name="Sheetname" value="Processor"/>
       <property name="Sheetfile" value="Processor.kicad_sch"/>
@@ -374,7 +374,7 @@
     </comp>
     <comp ref="R6">
       <value>100</value>
-      <footprint>Resistor_SMD:R_0805_2012Metric</footprint>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <libsource lib="Device" part="R_US" description="Resistor, US symbol"/>
       <property name="Sheetname" value="Processor"/>
       <property name="Sheetfile" value="Processor.kicad_sch"/>
@@ -687,7 +687,7 @@
     </comp>
     <comp ref="D8">
       <value>LED</value>
-      <footprint>LED_SMD:LED_0805_2012Metric</footprint>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
       <libsource lib="Device" part="LED" description="Light emitting diode"/>
       <property name="Sheetname" value="Wireless"/>
       <property name="Sheetfile" value="Wireless.kicad_sch"/>
@@ -698,7 +698,7 @@
     </comp>
     <comp ref="D9">
       <value>LED</value>
-      <footprint>LED_SMD:LED_0805_2012Metric</footprint>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
       <libsource lib="Device" part="LED" description="Light emitting diode"/>
       <property name="Sheetname" value="Wireless"/>
       <property name="Sheetfile" value="Wireless.kicad_sch"/>
@@ -709,7 +709,7 @@
     </comp>
     <comp ref="R16">
       <value>100</value>
-      <footprint>Resistor_SMD:R_0805_2012Metric</footprint>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <libsource lib="Device" part="R_US" description="Resistor, US symbol"/>
       <property name="Sheetname" value="Wireless"/>
       <property name="Sheetfile" value="Wireless.kicad_sch"/>
@@ -720,7 +720,7 @@
     </comp>
     <comp ref="R17">
       <value>100</value>
-      <footprint>Resistor_SMD:R_0805_2012Metric</footprint>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <libsource lib="Device" part="R_US" description="Resistor, US symbol"/>
       <property name="Sheetname" value="Wireless"/>
       <property name="Sheetfile" value="Wireless.kicad_sch"/>
