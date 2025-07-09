@@ -13,6 +13,9 @@
 #include "WirelessComm.h"
 #include "PowerManager.h"
 
+#include "bsp/board_api.h"
+#include "tusb.h"
+
 //Communication objects
 ControllerComm controllerComm;
 WirelessComm wirelessComm;
@@ -95,11 +98,13 @@ void WirelessCommunicationCore()
     //Init the wireless communication
     bool bInitSuccess = wirelessComm.Init();
 
+    board_init();
+
     while(1)
     {
         wirelessComm.Background();
 
-        if(/* bInitSuccess */false)
+        if(bInitSuccess)
         {
             //Ping-pong the ownership of the controller data between controller and wireless
             if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
@@ -163,22 +168,6 @@ void WirelessCommunicationCore()
                 //Switch back to the controller comm owning data
                 nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }
-        }
-        else
-        {
-            if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
-            {
-                if(GetInterfaceType() == CONSOLE_SIDE_INTERFACE)
-                {
-                    memset(controllerBuffer, 0, sizeof(controllerBuffer));
-                    for(size_t i = 0; i < NUM_CONTROLLERS; i++)
-                        controllerBuffer[i].pad2 = 1;
-                }
-                nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
-            }
-
-            //Switch back to the controller comm owning data
-            nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
         }
     }
 }

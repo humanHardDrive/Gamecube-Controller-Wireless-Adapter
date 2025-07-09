@@ -411,7 +411,10 @@ void ControllerComm::ConsoleInterfaceBackground(bool bStopComm, bool* bCanSleep)
 
 void ControllerComm::Background()
 {
-    MainBackground();
+    if(m_bStartupDone)
+        MainBackground();
+    else
+        StartupSequence();
 }
 
 void ControllerComm::SetControllerData(ControllerValues* pControllerData)
