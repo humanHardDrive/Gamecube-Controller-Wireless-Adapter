@@ -169,12 +169,15 @@ void WirelessCommunicationCore()
                 nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }
         }
+
+        tud_task();
     }
 }
 
 int main()
 {
     stdio_init_all();
+    board_init();
 
     sleep_ms(1500);
 
