@@ -92,6 +92,7 @@ void WirelessCommunicationCore()
     uint8_t nMissedMsgs = 0;
     absolute_time_t lastMsgTXTime = get_absolute_time();
     absolute_time_t lastMsgRXTime = get_absolute_time();
+    hid_gamepad_report_t aGamepadReport[NUM_CONTROLLERS];
 
     printf("Wireless core started\n");
 
@@ -99,15 +100,21 @@ void WirelessCommunicationCore()
     bool bInitSuccess = wirelessComm.Init();
 
     board_init();
+    const tusb_rhport_init_t rh_init = {
+        .role = TUSB_ROLE_DEVICE,
+        .speed = TUD_OPT_HIGH_SPEED ? TUSB_SPEED_HIGH : TUSB_SPEED_FULL
+    };
+    tud_rhport_init(BOARD_TUD_RHPORT, &rh_init);
+    board_init_after_tusb();
 
     while(1)
     {
         wirelessComm.Background();
 
-        if(bInitSuccess)
+        //Ping-pong the ownership of the controller data between controller and wireless
+        if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
         {
-            //Ping-pong the ownership of the controller data between controller and wireless
-            if(nControllerDataOwner == WIRELESS_COMM_OWNS_DATA)
+            if(bInitSuccess)
             {
                 uint8_t rxBuf[MAX_PAYLOAD_SIZE];
                 uint8_t nBytesRead = 0;
@@ -164,10 +171,75 @@ void WirelessCommunicationCore()
                         bDataReceived = false;
                     }
                 }
-
-                //Switch back to the controller comm owning data
-                nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
             }
+
+            for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
+            {   
+                uint8_t hatVal = 0;
+
+                aGamepadReport[i].x = controllerBuffer[i].JoyX;
+                aGamepadReport[i].y = controllerBuffer[i].JoyY;
+
+                aGamepadReport[i].z = controllerBuffer[i].CX;
+                aGamepadReport[i].rz = controllerBuffer[i].CY;
+
+                aGamepadReport[i].rx = controllerBuffer[i].LVal;
+                aGamepadReport[i].ry = controllerBuffer[i].RVal;
+
+                hatVal = controllerBuffer[i].DUp | (controllerBuffer[i].DRight << 1) |
+                        (controllerBuffer[i].DDown << 2) | (controllerBuffer[i].DLeft << 3);
+                switch(hatVal)
+                {
+                    //Up
+                    case 1:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_UP;
+                    break;
+
+                    //Right
+                    case 2:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_RIGHT;
+                    break;
+
+                    //Up-Right
+                    case 3:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_UP_RIGHT;
+                    break;
+
+                    //Down
+                    case 4:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_DOWN;
+                    break;
+
+                    //Down-Right
+                    case 6:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_DOWN_RIGHT;
+                    break;
+
+                    //Left
+                    case 8:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_LEFT;
+                    break;
+
+                    //Up-Left
+                    case 9:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_UP_LEFT;
+                    break;
+
+                    //Down-Left
+                    case 12:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_DOWN_LEFT;
+                    break;
+
+                    //No direction
+                    //Or some invalid combination of directions
+                    default:
+                    aGamepadReport[i].hat = GAMEPAD_HAT_CENTERED;
+                    break;
+                }
+            }
+
+            //Switch back to the controller comm owning data
+            nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
         }
 
         tud_task();

@@ -1,0 +1,13 @@
+#ifndef __USB_DESCRIPTORS_H__
+#define __USB_DESCRIPTORS_H__
+
+enum
+{
+    REPORT_ID_GAMEPAD_1 = 1,
+    REPORT_ID_GAMEPAD_2,
+    REPORT_ID_GAMEPAD_3,
+    REPORT_ID_GAMEPAD_4,
+    REPORT_ID_COUNT
+};
+
+#endif
