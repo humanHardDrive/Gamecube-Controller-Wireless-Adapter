@@ -29,7 +29,7 @@ target_sources(gcn-wireless-controller PRIVATE main.cpp usb_descriptors.cpp Util
 target_link_libraries(gcn-wireless-controller 
 						PRIVATE pico_stdlib pico_mem_ops pico_multicore hardware_pio hardware_spi tinyusb_device tinyusb_board RF24)
 
-pico_enable_stdio_usb(gcn-wireless-controller  0)
-pico_enable_stdio_uart(gcn-wireless-controller  1)
+pico_enable_stdio_usb(gcn-wireless-controller  1)
+pico_enable_stdio_uart(gcn-wireless-controller  0)
 
 pico_add_extra_outputs(gcn-wireless-controller)

@@ -51,11 +51,26 @@ uint8_t const* tud_hid_descriptor_report_cb(uint8_t instance)
 enum
 {
   ITF_NUM_HID,
+  ITF_NUM_CDC_0,
+  ITF_NUM_CDC_0_DATA,
   ITF_NUM_TOTAL
 };
 
-#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
+#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_CDC_DESC_LEN)
 #define EPNUM_HID   0x81
+
+#define EPNUM_CDC_0_NOTIF   0x82
+#define EPNUM_CDC_0_OUT     0x03
+#define EPNUM_CDC_0_IN      0x83
+
+// String Descriptor Index
+enum {
+  STRID_LANGID = 0,
+  STRID_MANUFACTURER,
+  STRID_PRODUCT,
+  STRID_SERIAL,
+  STRID_CDC_0
+};
 
 uint8_t const desc_configuration[] =
 {
@@ -63,7 +78,10 @@ uint8_t const desc_configuration[] =
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
   // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, CFG_TUD_HID_EP_BUFSIZE, 5)
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, CFG_TUD_HID_EP_BUFSIZE, 5),
+
+  // CDC 0: Communication Interface - TODO: get 64 from tusb_config.h
+  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, STRID_CDC_0, EPNUM_CDC_0_NOTIF, 8, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 64)
 };
 
 uint8_t const* tud_descriptor_configuration_cb(uint8_t index)
@@ -72,13 +90,25 @@ uint8_t const* tud_descriptor_configuration_cb(uint8_t index)
     return desc_configuration;
 }
 
-// String Descriptor Index
-enum {
-  STRID_LANGID = 0,
-  STRID_MANUFACTURER,
-  STRID_PRODUCT,
-  STRID_SERIAL,
+// more device descriptor this time the qualifier
+tusb_desc_device_qualifier_t const desc_device_qualifier = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = USB_BCD,
+
+    .bDeviceClass = 0,
+    .bDeviceSubClass = 0,
+    .bDeviceProtocol = 0,
+
+    .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+    .bNumConfigurations = 0x01,
+    .bReserved = 0x00
 };
+
+uint8_t const* tud_descriptor_device_qualifier_cb(void)
+{
+    return (uint8_t const *)&desc_device_qualifier;
+}
 
 // array of pointer to string descriptors
 char const *string_desc_arr[] =
@@ -87,6 +117,7 @@ char const *string_desc_arr[] =
   "TinyUSB",                     // 1: Manufacturer
   "TinyUSB Device",              // 2: Product
   NULL,                          // 3: Serials will use unique ID if possible
+  "Pico SDK STDIO"
 };
 
 static uint16_t _desc_str[32 + 1];
