@@ -1,85 +1,209 @@
-(kicad_sch (version 20230121) (generator eeschema)
-
-  (uuid debf4462-021e-4805-bcd2-6130c1f65c4c)
-
-  (paper "A4")
-
-  (lib_symbols
-  )
-
-
-  (sheet (at 80.645 92.71) (size 51.435 33.02) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid 00d40970-3d04-492a-a76f-db39fb68e165)
-    (property "Sheetname" "Wireless" (at 80.645 91.9984 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "wireless.kicad_sch" (at 80.645 126.3146 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (instances
-      (project "Controller Interface"
-        (path "/debf4462-021e-4805-bcd2-6130c1f65c4c" (page "5"))
-      )
-    )
-  )
-
-  (sheet (at 139.7 90.17) (size 48.26 35.56) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid 0e5e425d-874a-4494-8f06-80e1d5ace878)
-    (property "Sheetname" "Power" (at 139.7 89.4584 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "power.kicad_sch" (at 139.7 126.3146 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (property "Field2" "" (at 139.7 90.17 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (instances
-      (project "Controller Interface"
-        (path "/debf4462-021e-4805-bcd2-6130c1f65c4c" (page "3"))
-      )
-    )
-  )
-
-  (sheet (at 139.7 52.07) (size 48.26 33.02) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid 8b74bfbb-1df7-41c8-9da7-14534e77ff25)
-    (property "Sheetname" "Controller Connectors" (at 139.7 51.3584 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "controller_connectors.kicad_sch" (at 139.7 85.6746 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (instances
-      (project "Controller Interface"
-        (path "/debf4462-021e-4805-bcd2-6130c1f65c4c" (page "2"))
-      )
-    )
-  )
-
-  (sheet (at 80.01 52.07) (size 53.34 33.02) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid b67b8a11-cf45-4531-a24a-54934a9624a8)
-    (property "Sheetname" "Processor" (at 80.01 51.3584 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "processor.kicad_sch" (at 80.01 85.6746 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (instances
-      (project "Controller Interface"
-        (path "/debf4462-021e-4805-bcd2-6130c1f65c4c" (page "4"))
-      )
-    )
-  )
-
-  (sheet_instances
-    (path "/" (page "1"))
-  )
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "debf4462-021e-4805-bcd2-6130c1f65c4c")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 80.645 92.71)
+		(size 51.435 33.02)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "00d40970-3d04-492a-a76f-db39fb68e165")
+		(property "Sheetname" "Wireless"
+			(at 80.645 91.9984 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "wireless.kicad_sch"
+			(at 80.645 126.3146 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Controller Interface"
+				(path "/debf4462-021e-4805-bcd2-6130c1f65c4c"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 139.7 90.17)
+		(size 48.26 35.56)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "0e5e425d-874a-4494-8f06-80e1d5ace878")
+		(property "Sheetname" "Power"
+			(at 139.7 89.4584 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power.kicad_sch"
+			(at 139.7 126.3146 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(property "Field2" ""
+			(at 139.7 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "Controller Interface"
+				(path "/debf4462-021e-4805-bcd2-6130c1f65c4c"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 139.7 52.07)
+		(size 48.26 33.02)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "8b74bfbb-1df7-41c8-9da7-14534e77ff25")
+		(property "Sheetname" "Controller Connectors"
+			(at 139.7 51.3584 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "controller_connectors.kicad_sch"
+			(at 139.7 85.6746 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Controller Interface"
+				(path "/debf4462-021e-4805-bcd2-6130c1f65c4c"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 80.01 52.07)
+		(size 53.34 33.02)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "b67b8a11-cf45-4531-a24a-54934a9624a8")
+		(property "Sheetname" "Processor"
+			(at 80.01 51.3584 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "processor.kicad_sch"
+			(at 80.01 85.6746 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Controller Interface"
+				(path "/debf4462-021e-4805-bcd2-6130c1f65c4c"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
 )
