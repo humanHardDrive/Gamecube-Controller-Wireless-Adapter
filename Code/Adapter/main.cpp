@@ -12,9 +12,11 @@
 #include "ControllerComm.h"
 #include "WirelessComm.h"
 #include "PowerManager.h"
+#include "USBComm.h"
 
 #include "bsp/board_api.h"
 #include "tusb.h"
+#include "usb_descriptors.h"
 
 //Communication objects
 ControllerComm controllerComm;
@@ -34,6 +36,22 @@ ConsoleValues consoleBuffer[NUM_CONTROLLERS];
 //The switch lets either side know when it is safe to do so
 //The owner of the data is responsible for switching back when they're done
 
+void hid_task(void);
+void send_hid_report(uint8_t reportID);
+
+bool bTUDPollingActive = false;
+
+bool timer_callback(repeating_timer_t* t)
+{
+    //If tud polling hasn't started yet, keep doing the task
+    if(!bTUDPollingActive)
+        tud_task();
+    else //Otherwise, bail
+        printf("Stopping timer callback\n");
+
+    return bTUDPollingActive ? false : true;
+}
+
 /*
 Function for the controller communication core
 Communication between the controller/console is handled on a seperate processing core
@@ -46,6 +64,9 @@ void ControllerCommunicationCore()
     //Signal back that the core has started
     multicore_fifo_push_blocking(0);
     printf("Controller core started\n");
+
+    //Make sure this core isn't handling any USB interrupts
+    irq_set_enabled(USBCTRL_IRQ, false);
 
     //Initialize the controller communication
     controllerComm.Init();
@@ -177,18 +198,25 @@ void WirelessCommunicationCore()
 
                 aGamepadReport[i].rx = controllerBuffer[i].LVal;
                 aGamepadReport[i].ry = controllerBuffer[i].RVal;
+
+                aGamepadReport[i].hat = (controllerBuffer[i].DUp << GAMEPAD_HAT_UP) | (controllerBuffer[i].DDown << GAMEPAD_HAT_DOWN) |
+                                        (controllerBuffer[i].DLeft << GAMEPAD_HAT_LEFT) | (controllerBuffer[i].DRight << GAMEPAD_HAT_RIGHT);
             }
 
             //Switch back to the controller comm owning data
             nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
         }
 
+        bTUDPollingActive = true;
         tud_task();
+        hid_task();
     }
 }
 
 int main()
 {
+    repeating_timer_t timer;
+
     board_init();
     const tusb_rhport_init_t rh_init = {
         .role = TUSB_ROLE_DEVICE,
@@ -198,6 +226,11 @@ int main()
     board_init_after_tusb();
 
     stdio_init_all();
+
+    //WirelessCommunication core handles the TUD task
+    //Until it's started, we can't do any serial prints
+    //Start a repeating timer event to call the task every 10mS
+    add_repeating_timer_ms(10, timer_callback, NULL, &timer);
 
     sleep_ms(1500);
 
