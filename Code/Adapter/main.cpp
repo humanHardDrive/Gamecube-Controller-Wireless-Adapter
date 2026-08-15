@@ -21,6 +21,7 @@
 //Communication objects
 ControllerComm controllerComm;
 WirelessComm wirelessComm;
+USBComm usbComm;
 PowerManager powerManager;
 
 #define CONTROLLER_COMM_OWNS_DATA   0
@@ -113,7 +114,6 @@ void WirelessCommunicationCore()
     uint8_t nMissedMsgs = 0;
     absolute_time_t lastMsgTXTime = get_absolute_time();
     absolute_time_t lastMsgRXTime = get_absolute_time();
-    hid_gamepad_report_t aGamepadReport[NUM_CONTROLLERS];
 
     printf("Wireless core started\n");
 
@@ -188,18 +188,19 @@ void WirelessCommunicationCore()
 
             for(uint8_t i = 0; i < NUM_CONTROLLERS; i++)
             {   
+                hid_gamepad_report_t report;
                 uint8_t hatVal = 0;
 
-                aGamepadReport[i].x = controllerBuffer[i].JoyX;
-                aGamepadReport[i].y = controllerBuffer[i].JoyY;
+                report.x = controllerBuffer[i].JoyX;
+                report.y = controllerBuffer[i].JoyY;
 
-                aGamepadReport[i].z = controllerBuffer[i].CX;
-                aGamepadReport[i].rz = controllerBuffer[i].CY;
+                report.z = controllerBuffer[i].CX;
+                report.rz = controllerBuffer[i].CY;
 
-                aGamepadReport[i].rx = controllerBuffer[i].LVal;
-                aGamepadReport[i].ry = controllerBuffer[i].RVal;
+                report.rx = controllerBuffer[i].LVal;
+                report.ry = controllerBuffer[i].RVal;
 
-                aGamepadReport[i].hat = (controllerBuffer[i].DUp << GAMEPAD_HAT_UP) | (controllerBuffer[i].DDown << GAMEPAD_HAT_DOWN) |
+                report.hat = (controllerBuffer[i].DUp << GAMEPAD_HAT_UP) | (controllerBuffer[i].DDown << GAMEPAD_HAT_DOWN) |
                                         (controllerBuffer[i].DLeft << GAMEPAD_HAT_LEFT) | (controllerBuffer[i].DRight << GAMEPAD_HAT_RIGHT);
             }
 
@@ -209,7 +210,7 @@ void WirelessCommunicationCore()
 
         bTUDPollingActive = true;
         tud_task();
-        hid_task();
+        usbComm.Background();
     }
 }
 
@@ -283,4 +284,33 @@ int main()
 
     //Should never reach this
     return 0;
+}
+
+void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_t len)
+{
+  (void)instance;
+  (void)len;
+
+  usbComm.SetLastSentReportID(report[0]);
+}
+
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen)
+{
+  // TODO not Implemented
+  (void) instance;
+  (void) report_id;
+  (void) report_type;
+  (void) buffer;
+  (void) reqlen;
+
+  return 0;
+}
+
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize)
+{
+    (void) instance;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) bufsize;
 }
