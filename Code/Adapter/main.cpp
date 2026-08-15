@@ -37,9 +37,6 @@ ConsoleValues consoleBuffer[NUM_CONTROLLERS];
 //The switch lets either side know when it is safe to do so
 //The owner of the data is responsible for switching back when they're done
 
-void hid_task(void);
-void send_hid_report(uint8_t reportID);
-
 bool bTUDPollingActive = false;
 
 bool timer_callback(repeating_timer_t* t)
@@ -202,14 +199,19 @@ void WirelessCommunicationCore()
 
                 report.hat = (controllerBuffer[i].DUp << GAMEPAD_HAT_UP) | (controllerBuffer[i].DDown << GAMEPAD_HAT_DOWN) |
                                         (controllerBuffer[i].DLeft << GAMEPAD_HAT_LEFT) | (controllerBuffer[i].DRight << GAMEPAD_HAT_RIGHT);
+                
+                usbComm.SetReport(i + REPORT_ID_GAMEPAD_1, &report);
             }
 
             //Switch back to the controller comm owning data
             nControllerDataOwner = CONTROLLER_COMM_OWNS_DATA;
         }
 
+        //Set this flag to stop the timer from handling usb updates
         bTUDPollingActive = true;
+        //Update tiny usb
         tud_task();
+        //Send out any reports
         usbComm.Background();
     }
 }
@@ -218,6 +220,8 @@ int main()
 {
     repeating_timer_t timer;
 
+    //Initialize tiny usb at the start to do print statements
+    //TinyUSB and the pico sdk usb CDC can't be used at the same time
     board_init();
     const tusb_rhport_init_t rh_init = {
         .role = TUSB_ROLE_DEVICE,
@@ -226,6 +230,7 @@ int main()
     tud_rhport_init(BOARD_TUD_RHPORT, &rh_init);
     board_init_after_tusb();
 
+    //Pico sdk stdio does still work, but with the first CDC initialized through tinyUSB
     stdio_init_all();
 
     //WirelessCommunication core handles the TUD task
